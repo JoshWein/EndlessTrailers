@@ -11,10 +11,18 @@
     display: inline-flex;
 }
 
+.activeGenre {
+    color: red;
+}
+
 .videoControlsGroup {
     width: 100%;
 }
 
 .videoControls {
     width: 50%;
+}
+
+body {
+    background-color: beige;
 }

@@ -1,16 +1,39 @@
 var currentMovieList;
 var currentMovieIndex;
+var configuration;
+var genreMap;
+
+function initialSetup() {
+    getConfiguration();
+    getGenres();
+}
+function getConfiguration() {
+    $.ajax({
+        url: "https://api.themoviedb.org/3/configuration",
+        data: {
+            api_key: "a5d4199b71fd3989796a8f11a0176c28"
+        },
+        success: function(data) {
+            configuration = data;
+            console.log(configuration);
+        }
+    });
+}
 
 function getGenres() {
-    console.log("Loading genres...");
+    console.log("a");
     $.ajax({
         url: "https://api.themoviedb.org/3/genre/movie/list",
         data: {
             api_key: "a5d4199b71fd3989796a8f11a0176c28"
         },
         success: function(data) {
-            console.log("genres loaded");
             setupSite(data.genres);
+            genreMap = {}
+            for(var i = 0; i < data.genres.length; i++) {
+                genreMap[data.genres[i].id] = data.genres[i].name;
+            }
+            console.log(genreMap);
         }
     });
 }
@@ -29,8 +52,9 @@ function insertGenres(genres) {
 
 function initializeEventHandlers() {
     $(".genreChoice").click(function() {
-        console.log(this);
         getMovies(this.id);
+        $(".genreChoice").removeClass("activeGenre");
+        $(this).addClass("activeGenre");
     });
 }
 
@@ -40,7 +64,8 @@ function getMovies(genre) {
         url: "https://api.themoviedb.org/3/discover/movie",
         data: {
             api_key: "a5d4199b71fd3989796a8f11a0176c28",
-            with_genres: genre
+            with_genres: genre,
+            language: "en"
         },
         success: function(data) {
             currentMovieList = data.results;
@@ -48,8 +73,7 @@ function getMovies(genre) {
             shuffle(currentMovieList);
             console.log(currentMovieList);
             currentMovieIndex = 0;
-            search(currentMovieList[currentMovieIndex].title);
-            showMovieInfo(currentMovieList[currentMovieIndex]);
+            loadVideo(currentMovieList[currentMovieIndex]);
         }
     });
 }
@@ -59,8 +83,7 @@ function loadNextVideo() {
     if(currentMovieIndex > currentMovieList.length - 1) {
         currentMovieIndex = 0;
     }
-    search(currentMovieList[currentMovieIndex].title);
-    showMovieInfo(currentMovieList[currentMovieIndex]);
+    loadVideo(currentMovieList[currentMovieIndex]);
 }
 
 function loadPreviousVideo() {
@@ -68,20 +91,33 @@ function loadPreviousVideo() {
     if(currentMovieIndex < 0) {
         currentMovieIndex = currentMovieList.length - 1;
     }
-    search(currentMovieList[currentMovieIndex].title);
-    showMovieInfo(currentMovieList[currentMovieIndex]);
+    loadVideo(currentMovieList[currentMovieIndex]);
 }
+
+function loadVideo(movie) {
+    search(movie.title);
+    showMovieInfo(movie);
+    loadPoster(movie);
+}
+
+var monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+];
 
 function showMovieInfo(data) {
     // Set movie info
     $("#movieInfo").html(data.overview);
     var date = new Date(data.release_date.substring(0, 4), data.release_date.substring(5,7), data.release_date.substring(8,10) );
-    date.setMonth(date.getMonth() - 1)
     // Set release date
-    $("#releaseDate").html("Release Date: " + date.getMonth() +"/" + date.getDate() + "/" + date.getFullYear());
+    $("#releaseDate").html("Release Date: " + monthNames[date.getMonth()] +" " + date.getDate() + ", " + date.getFullYear());
     // Set rating
     $("#rating").html("Rating: " + data.vote_average);
+}
 
+function loadPoster(data) {
+    var base_url = configuration.images.secure_base_url;
+    var size = configuration.images.poster_sizes[0];
+    console.log(base_url+size+data.poster_path);
 }
 
 $(function() {
@@ -130,7 +166,7 @@ function shuffle(array) {
     return array;
 }
 
-document.onload = getGenres();
+document.onload = initialSetup();
 
 
 /**
