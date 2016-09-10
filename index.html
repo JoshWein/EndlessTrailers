@@ -5,14 +5,41 @@
     <script src="js/scripts.js"></script>
     <script src="https://apis.google.com/js/client.js?onload=init"></script>
     <script src="http://www.youtube.com/player_api"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+          integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
+          integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<h1>Endless Trailers</h1>
-<div id="genreTitle">Genres</div>
-<div id="genreList"></div>
-<div>
-    <h2 id="videoTitle"></h2>
+<nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container text-center">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="#">Endless Trailers</a>
+        </div>
+    </div>
+</nav>
+<div class="container-fluid">
+    <div class="wrapper text-center">
+        <div class="row">
+        </div>
+        <div class="row">
+            <h3 id="genreTitle">Genres</h3>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+            <div id="genreList"></div>
+            </div>
+        </div>
+        <div class="row">
+            <div>
+                <h2 id="videoTitle"></h2>
+            </div>
+        </div>
+        <div class="row">
+            <div id="player"></div>
+        </div>
+    </div>
 </div>
-<div id="player"></div>
 </body>
 </html>

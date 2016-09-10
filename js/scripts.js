@@ -9,6 +9,7 @@ function getGenres() {
             api_key: "a5d4199b71fd3989796a8f11a0176c28"
         },
         success: function(data) {
+            console.log("genres loaded");
             setupSite(data.genres);
         }
     });
@@ -21,7 +22,7 @@ function setupSite(genres) {
 
 function insertGenres(genres) {
     genres.forEach(function(a) {
-            $("#genreList").html($("#genreList").html() + "<li class=\"genreChoice\" id=\""+a.id+"\">"+ a.name + "</li>");
+            $("#genreList").html($("#genreList").html() + "<span class=\"genreChoice\" id=\""+a.id+"\">"+ a.name + "</span>");
         }
     )
 }
@@ -31,7 +32,6 @@ function initializeEventHandlers() {
         console.log(this);
         getMovies(this.id);
     });
-    document.getElementById("videoPlayer").addEventListener('ended', loadNextVideo,false);
 }
 
 function getMovies(genre) {
@@ -63,7 +63,7 @@ function init() {
     gapi.client.setApiKey("AIzaSyDw7S38ScuTjqJ7uQZf9MAyRdhemeUEJnc");
     gapi.client.load("youtube", "v3", function(){
         //ready;
-        console.log("ready");
+        console.log("Player ready");
     })
 }
 
@@ -109,7 +109,7 @@ function onYouTubeIframeAPIReady() {
     player = new YT.Player('player', {
         height: '390',
         width: '640',
-        videoId: 'M7lc1UVf-VE',
+        videoId: '',
         events: {
             'onReady': onPlayerReady,
             'onStateChange': onPlayerStateChange
@@ -119,13 +119,12 @@ function onYouTubeIframeAPIReady() {
 
 // autoplay video
 function onPlayerReady(event) {
-    event.target.playVideo();
+    // event.target.playVideo();
 }
 
 // when video ends
 function onPlayerStateChange(event) {
     if(event.data === 0) {
-        currentMovieIndex++;
-        search(currentMovieList[currentMovieIndex].title);
+        loadNextVideo();
     }
 }
