@@ -78,6 +78,16 @@ function getMoviesWithData(data) {
 }
 
 function compileRequestData(genre) {
+    var data = {
+        api_key: "a5d4199b71fd3989796a8f11a0176c28",
+        with_genres: genre,
+        language: "en"
+    };
+    if($("#ratingCheckbox").is(":checked")) {
+        data["vote_average.gte"] =  $("#ratingMinimum").val();
+    } else {
+        data["vote_average.gte"] = 4;
+    }
     if($("#actorCheckbox").is(":checked")) {
         $.ajax({
             url: "https://api.themoviedb.org/3/search/person",
@@ -86,22 +96,12 @@ function compileRequestData(genre) {
                 query: $("#actorText").val()
             },
             success: function(result) {
-                var data = {
-                    api_key: "a5d4199b71fd3989796a8f11a0176c28",
-                    with_genres: genre,
-                    language: "en",
-                    with_cast: result.results[0].id
-                };
+                data["with_cast"] = result.results[0].id;
                 console.log(result.results[0].name + " : " + result.results[0].id);
                 getMoviesWithData(data);
             }
         });
     } else {
-        var data = {
-            api_key: "a5d4199b71fd3989796a8f11a0176c28",
-            with_genres: genre,
-            language: "en"
-        };
         getMoviesWithData(data);
     }
 }
