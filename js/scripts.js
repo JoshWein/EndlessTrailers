@@ -54,8 +54,18 @@ function getMovies(genre) {
 }
 
 function loadNextVideo() {
-    console.log("nexting");
     currentMovieIndex++;
+    if(currentMovieIndex > currentMovieList.length - 1) {
+        currentMovieIndex = 0;
+    }
+    search(currentMovieList[currentMovieIndex].title);
+}
+
+function loadPreviousVideo() {
+    currentMovieIndex--;
+    if(currentMovieIndex < 0) {
+        currentMovieIndex = currentMovieList.length - 1;
+    }
     search(currentMovieList[currentMovieIndex].title);
 }
 
