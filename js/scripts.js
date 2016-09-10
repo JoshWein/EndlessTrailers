@@ -49,6 +49,7 @@ function getMovies(genre) {
             console.log(currentMovieList);
             currentMovieIndex = 0;
             search(currentMovieList[currentMovieIndex].title);
+            showMovieInfo(currentMovieList[currentMovieIndex]);
         }
     });
 }
@@ -59,6 +60,7 @@ function loadNextVideo() {
         currentMovieIndex = 0;
     }
     search(currentMovieList[currentMovieIndex].title);
+    showMovieInfo(currentMovieList[currentMovieIndex]);
 }
 
 function loadPreviousVideo() {
@@ -67,14 +69,31 @@ function loadPreviousVideo() {
         currentMovieIndex = currentMovieList.length - 1;
     }
     search(currentMovieList[currentMovieIndex].title);
+    showMovieInfo(currentMovieList[currentMovieIndex]);
 }
 
-function init() {
-    gapi.client.setApiKey("AIzaSyDw7S38ScuTjqJ7uQZf9MAyRdhemeUEJnc");
-    gapi.client.load("youtube", "v3", function(){
-        //ready;
-        console.log("Player ready");
-    })
+function showMovieInfo(data) {
+    // Set movie info
+    $("#movieInfo").html(data.overview);
+    var date = new Date(data.release_date.substring(0, 4), data.release_date.substring(5,7), data.release_date.substring(8,10) );
+    date.setMonth(date.getMonth() - 1)
+    // Set release date
+    $("#releaseDate").html("Release Date: " + date.getMonth() +"/" + date.getDate() + "/" + date.getFullYear());
+    // Set rating
+    $("#rating").html("Rating: " + data.vote_average);
+
+}
+
+$(function() {
+    $("#trailerSearch").submit(function() {
+        searchSubmit();
+        return false;
+    });
+});
+
+function searchSubmit() {
+    search($("#searchText").val());
+    return false;
 }
 
 // Search for a specified string.
@@ -89,7 +108,7 @@ function search(q) {
     request.execute(function(response) {
         console.log(response);
         player.loadVideoById(response.items[0].id.videoId, 1, "default");
-        $("#videoTitle").html(q);
+        $("#movieTitle").html(q);
     });
 }
 
@@ -108,12 +127,22 @@ function shuffle(array) {
         array[currentIndex] = array[randomIndex];
         array[randomIndex] = temporaryValue;
     }
-
     return array;
 }
 
 document.onload = getGenres();
 
+
+/**
+ * Youtube Data/Player API Code
+ */
+function init() {
+    gapi.client.setApiKey("AIzaSyDw7S38ScuTjqJ7uQZf9MAyRdhemeUEJnc");
+    gapi.client.load("youtube", "v3", function(){
+        //ready;
+        console.log("Player ready");
+    })
+}
 var player;
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('player', {
@@ -127,7 +156,6 @@ function onYouTubeIframeAPIReady() {
     });
 }
 
-// autoplay video
 function onPlayerReady(event) {
     // event.target.playVideo();
 }
