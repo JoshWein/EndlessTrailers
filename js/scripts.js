@@ -59,14 +59,13 @@ function initializeEventHandlers() {
 }
 
 function getMovies(genre) {
-    console.log("Getting " + genre + " movies");
+    compileRequestData(genre);
+}
+
+function getMoviesWithData(data) {
     $.ajax({
         url: "https://api.themoviedb.org/3/discover/movie",
-        data: {
-            api_key: "a5d4199b71fd3989796a8f11a0176c28",
-            with_genres: genre,
-            language: "en"
-        },
+        data: data,
         success: function(data) {
             currentMovieList = data.results;
             // Unique every time!
@@ -76,6 +75,35 @@ function getMovies(genre) {
             loadVideo(currentMovieList[currentMovieIndex]);
         }
     });
+}
+
+function compileRequestData(genre) {
+    if($("#actorCheckbox").is(":checked")) {
+        $.ajax({
+            url: "https://api.themoviedb.org/3/search/person",
+            data: {
+                api_key: "a5d4199b71fd3989796a8f11a0176c28",
+                query: $("#actorText").val()
+            },
+            success: function(result) {
+                var data = {
+                    api_key: "a5d4199b71fd3989796a8f11a0176c28",
+                    with_genres: genre,
+                    language: "en",
+                    with_cast: result.results[0].id
+                };
+                console.log(result.results[0].name + " : " + result.results[0].id);
+                getMoviesWithData(data);
+            }
+        });
+    } else {
+        var data = {
+            api_key: "a5d4199b71fd3989796a8f11a0176c28",
+            with_genres: genre,
+            language: "en"
+        };
+        getMoviesWithData(data);
+    }
 }
 
 function loadNextVideo() {
@@ -111,14 +139,14 @@ function showMovieInfo(data) {
     // Set release date
     $("#releaseDate").html("Release Date: " + monthNames[date.getMonth()] +" " + date.getDate() + ", " + date.getFullYear());
     // Set rating
-    $("#rating").html("Rating: " + data.vote_average);
+    $("#rating").html("Rating: " + data.vote_average.toFixed(1) + "/10");
+    $("#canistreamlink").html("<a target=\"_blank\" href=\"http://www.canistream.it/search/movie/"+data.title+"\">Can I Stream It?</a>")
 }
 
 function loadPoster(data) {
     var base_url = configuration.images.secure_base_url;
     var size = configuration.images.poster_sizes[0];
     $("#poster").html("<img src=\"" + base_url+size+data.poster_path + "\">");
-    console.log(base_url+size+data.poster_path);
 }
 
 $(function() {
@@ -143,7 +171,6 @@ function search(q) {
     });
 
     request.execute(function(response) {
-        console.log(response);
         player.loadVideoById(response.items[0].id.videoId, 1, "default");
         $("#movieTitle").html(q);
     });
@@ -165,43 +192,4 @@ function shuffle(array) {
         array[randomIndex] = temporaryValue;
     }
     return array;
-}
-
-document.onload = initialSetup();
-
-
-/**
- * Youtube Data/Player API Code
- */
-function init() {
-    gapi.client.setApiKey("AIzaSyDw7S38ScuTjqJ7uQZf9MAyRdhemeUEJnc");
-    gapi.client.load("youtube", "v3", function(){
-        //ready;
-        console.log("Player ready");
-    })
-}
-var player;
-function onYouTubeIframeAPIReady() {
-    player = new YT.Player('player', {
-        height: '390',
-        width: '640',
-        videoId: '',
-        controls: 2,
-        iv_load_policy: 3,
-        events: {
-            'onReady': onPlayerReady,
-            'onStateChange': onPlayerStateChange
-        }
-    });
-}
-
-function onPlayerReady(event) {
-    // event.target.playVideo();
-}
-
-// when video ends
-function onPlayerStateChange(event) {
-    if(event.data === 0) {
-        loadNextVideo();
-    }
 }

@@ -5,27 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Endless Trailers</title>
     <script src="js/jquery.min.js"></script>
+    <script src="js/ytapi.js"></script>
     <script src="js/scripts.js"></script>
-    <script src="https://apis.google.com/js/client.js?onload=init"></script>
     <script src="http://www.youtube.com/player_api"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
           integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
           integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://apis.google.com/js/client.js?onload=init"></script>
 </head>
-<body>
+<body onload="initialSetup()">
 <nav class="navbar navbar-default navbar-fixed-top">
     <div class="container">
         <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+                    data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
             <a class="navbar-brand" href="#">Endless Trailers</a>
-            <form class="navbar-form navbar-left" role="search" id="trailerSearch">
-                <div class="form-group">
-                    <input type="text" class="form-control" placeholder="Search" id="searchText">
-                </div>
-                <button type="submit" class="btn btn-default" onclick="searchSubmit()">Submit</button>
+        </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <form class="navbar-form navbar-right" role="search" id="trailerSearch">
+                <div class="input-group" id="searchBar">
+                    <input type="text" class="form-control" placeholder="Movie Title..." id="searchText">
+                    <div class="input-group-btn">
+                        <button class="btn btn-default" type="submit" onclick="searchSubmit()"><i
+                                class="glyphicon glyphicon-search"></i></button>
+                    </div>
+                    </div>
             </form>
         </div>
+
     </div>
 </nav>
 <div class="container-fluid">
@@ -38,6 +53,27 @@
                 <p id="genreList"></p>
             </div>
         </div>
+        <div class="row">
+            <div class="panel-group col-md-6 col-md-push-3">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h4 class="panel-title">
+                            <a data-toggle="collapse" href="#collapse1">Advanced Filters</a>
+                        </h4>
+                    </div>
+                    <div id="collapse1" class="panel-collapse collapse">
+                        <div class="panel-body">
+                            <div class="input-group">
+                                <span class="input-group-addon">
+                                    <input id="actorCheckbox" type="checkbox" aria-label="...">
+                                        </span>
+                                <input type="text" class="form-control" placeholder="Actor" id="actorText">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="row text-center">
             <h2 id="movieTitle"></h2>
         </div>
@@ -45,6 +81,7 @@
             <div class="col-md-6 col-md-push-3">
                 <div class="embed-responsive embed-responsive-16by9">
                     <div class="embed-responsive-item" id="player"></div>
+                    If you can see this, reload.
                 </div>
             </div>
         </div>
@@ -70,6 +107,11 @@
                 <div class="row">
                     <div class="col-xs-12">
                         <h5 id="rating"></h5>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-xs-12">
+                        <h5 id="canistreamlink"></h5>
                     </div>
                 </div>
             </div>
