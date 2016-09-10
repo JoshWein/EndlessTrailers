@@ -117,6 +117,7 @@ function showMovieInfo(data) {
 function loadPoster(data) {
     var base_url = configuration.images.secure_base_url;
     var size = configuration.images.poster_sizes[0];
+    $("#poster").html("<img src=\"" + base_url+size+data.poster_path + "\">");
     console.log(base_url+size+data.poster_path);
 }
 
@@ -185,6 +186,8 @@ function onYouTubeIframeAPIReady() {
         height: '390',
         width: '640',
         videoId: '',
+        controls: 2,
+        iv_load_policy: 3,
         events: {
             'onReady': onPlayerReady,
             'onStateChange': onPlayerStateChange
