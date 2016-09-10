@@ -1,7 +1,8 @@
 .wrapper {
-    padding-top: 35px;
+    padding-top: 50px;
 }
 
 .genreChoice {
     padding: 5px;
+    display: inline-flex;
 }

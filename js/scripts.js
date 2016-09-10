@@ -22,7 +22,7 @@ function setupSite(genres) {
 
 function insertGenres(genres) {
     genres.forEach(function(a) {
-            $("#genreList").html($("#genreList").html() + "<span class=\"genreChoice\" id=\""+a.id+"\">"+ a.name + "</span>");
+            $("#genreList").html($("#genreList").html() + "<div class=\"genreChoice\" id=\""+a.id+"\">"+ a.name + "</div>");
         }
     )
 }
