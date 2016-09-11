@@ -11,7 +11,7 @@ function getConfiguration() {
     $.ajax({
         url: "https://api.themoviedb.org/3/configuration",
         data: {
-            api_key: "a5d4199b71fd3989796a8f11a0176c28"
+            api_key: api_key
         },
         success: function(data) {
             configuration = data;
@@ -23,7 +23,7 @@ function getGenres() {
     $.ajax({
         url: "https://api.themoviedb.org/3/genre/movie/list",
         data: {
-            api_key: "a5d4199b71fd3989796a8f11a0176c28"
+            api_key: api_key
         },
         success: function(data) {
             setupSite(data.genres);
@@ -83,7 +83,6 @@ function getMoviesWithData(data, initialCall, remaining) {
                     loadVideo(currentMovieList[currentMovieIndex]);
                 } else {
                     $("#err").html("No movies found");
-                    console.log(currentMovieList);
                 }
             }
         }
@@ -106,7 +105,7 @@ function getMoreMovies(data, response) {
 
 function compileRequestData(genre) {
     var data = {
-        api_key: "a5d4199b71fd3989796a8f11a0176c28",
+        api_key: api_key,
         with_genres: genre,
         language: "en"
     };
@@ -119,7 +118,7 @@ function compileRequestData(genre) {
         $.ajax({
             url: "https://api.themoviedb.org/3/search/person",
             data: {
-                api_key: "a5d4199b71fd3989796a8f11a0176c28",
+                api_key: api_key,
                 query: $("#actorText").val()
             },
             success: function(result) {
@@ -155,7 +154,6 @@ function loadPreviousVideo() {
 function loadVideo(movie) {
     search(movie.title);
     showMovieInfo(movie);
-    loadPoster(movie);
 }
 
 var monthNames = ["January", "February", "March", "April", "May", "June",
@@ -163,6 +161,7 @@ var monthNames = ["January", "February", "March", "April", "May", "June",
 ];
 
 function showMovieInfo(data) {
+    loadPoster(data);
     // Set movie info
     $("#movieInfo").html(data.overview);
     var date = new Date(data.release_date.substring(0, 4), data.release_date.substring(5,7), data.release_date.substring(8,10) );
@@ -170,7 +169,7 @@ function showMovieInfo(data) {
     $("#releaseDate").html("Release Date: " + monthNames[date.getMonth()] +" " + date.getDate() + ", " + date.getFullYear());
     // Set rating
     $("#rating").html("Rating: " + data.vote_average.toFixed(1) + "/10");
-    $("#canistreamlink").html("<a target=\"_blank\" href=\"http://www.canistream.it/search/movie/"+data.title+"\">Can I Stream It?</a>")
+    $("#canistreamlink").html("<a target=\"_blank\" href=\"http://www.canistream.it/search/movie/"+data.title+"\">Can I Stream It?</a>");
 }
 
 function loadPoster(data) {
@@ -188,6 +187,7 @@ $(function() {
 
 function searchSubmit() {
     search($("#searchText").val());
+    getMovieInfo($("#searchText").val());
     return false;
 }
 
@@ -202,8 +202,36 @@ function search(q) {
 
     request.execute(function(response) {
         player.loadVideoById(response.items[0].id.videoId, 1, "default");
-        $("#movieTitle").html(q);
     });
+}
+
+// Request movie data
+function getMovieInfo(query) {
+    $.ajax({
+        url: "https://api.themoviedb.org/3/search/movie",
+        data: {
+            api_key: api_key,
+            query: query
+        },
+        success: function(response) {
+            if(response.results.length > 0) {
+                $("#movieTitle").html(response.results[0].original_title);
+                showMovieInfo(response.results[0])
+            } else {
+                $("#movieTitle").html(query);
+                clearMovieInfo();
+                $("#releaseDate").html("No info found");
+            }
+        }
+    });
+}
+
+function clearMovieInfo() {
+    $("#releaseDate").html("");
+    $("#movieInfo").html("");
+    $("#rating").html("");
+    $("#canistreamlink").html("");
+    $("#poster").html("");
 }
 
 // Knuth shuffle
@@ -223,3 +251,5 @@ function shuffle(array) {
     }
     return array;
 }
+
+var api_key = "a5d4199b71fd3989796a8f11a0176c28";
