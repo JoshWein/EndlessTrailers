@@ -89,3 +89,16 @@ body {
 a.clickable { color: inherit; }
 a.clickable:hover { text-decoration:none; }
 
+#mpaaRatingLabel {
+    width: 25%;
+    text-align: center;
+    margin-bottom: 0px;
+}
+
+#advancedFilterMpaaRating {
+    width: 75%;
+}
+
+.mpaaBtn {
+    width: 20%
+}

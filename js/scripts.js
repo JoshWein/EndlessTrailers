@@ -6,6 +6,7 @@ var g_advancedFilters;
 var g_NUM_FILTERS;
 var g_ACTOR_FILTER;
 var g_MIN_RATING_FILTER;
+var g_MPAA_FILTER;
 
 function initialSetup() {
     getConfiguration();
@@ -50,6 +51,7 @@ function setupFilters() {
     g_NUM_FILTERS = 2;
     g_ACTOR_FILTER = 0;
     g_MIN_RATING_FILTER = 1;
+    g_MPAA_FILTER = 3;
     g_advancedFilters = [];
     for (var i = 0; i < g_NUM_FILTERS; i++) {
         g_advancedFilters[i] = false;
@@ -77,47 +79,9 @@ function initializeEventHandlers() {
 
 function initializeFilterEventHandlers() {
     initializeFilterPanelEventHandlers();
-    $("#actorFilterApply").click(function () {
-        if ($("#actorText").val().length > 0) {
-            g_advancedFilters[g_ACTOR_FILTER] = true;
-        } else {
-            g_advancedFilters[g_ACTOR_FILTER] = false;
-        }
-        updateFilterVisuals();
-        refreshResults();
-    });
-    $("#actorText").keyup(function (e) {
-        if (e.keyCode == 13) {
-            $("#actorFilterApply").click();
-        }
-    })
-    $("#actorFilterClear").click(function () {
-        $("#actorText").val("");
-        g_advancedFilters[g_ACTOR_FILTER] = false;
-        updateFilterVisuals();
-        refreshResults();
-    });
-    $("#ratingMinimumFilterApply").click(function () {
-        if ($("#ratingMinimum").val().length > 0) {
-            g_advancedFilters[g_MIN_RATING_FILTER] = true;
-        } else {
-            g_advancedFilters[g_MIN_RATING_FILTER] = false;
-        }
-        updateFilterVisuals();
-        refreshResults();
-    });
-    $("#ratingMinimum").keyup(function (e) {
-        if (e.keyCode == 13) {
-            $("#ratingMinimumFilterApply").click();
-        }
-    });
-    $("#ratingMinimumFilterClear").click(function () {
-        $("#ratingMinimum").val("");
-        g_advancedFilters[g_MIN_RATING_FILTER] = false;
-        updateFilterVisuals();
-        refreshResults();
-    });
-
+    initializeActorFilterEventHandlers();
+    initMinRatingFilterEventHandlers();
+    initMpaaRatingFilterEventHandlers();
 }
 
 function initializeFilterPanelEventHandlers() {
@@ -144,6 +108,65 @@ function initializeFilterPanelEventHandlers() {
             $this.removeClass('panel-collapsed');
             $this.find('i').removeClass('glyphicon-plus').addClass('glyphicon-minus');
         }
+    });
+}
+
+function initializeActorFilterEventHandlers() {
+    $("#actorFilterApply").click(function () {
+        if ($("#actorText").val().length > 0) {
+            g_advancedFilters[g_ACTOR_FILTER] = true;
+        } else {
+            g_advancedFilters[g_ACTOR_FILTER] = false;
+        }
+        updateFilterVisuals();
+        refreshResults();
+    });
+    $("#actorText").keyup(function (e) {
+        if (e.keyCode == 13) {
+            $("#actorFilterApply").click();
+        }
+    })
+    $("#actorFilterClear").click(function () {
+        $("#actorText").val("");
+        g_advancedFilters[g_ACTOR_FILTER] = false;
+        updateFilterVisuals();
+        refreshResults();
+    });
+}
+
+function initMinRatingFilterEventHandlers() {
+    $("#ratingMinimumFilterApply").click(function () {
+        if ($("#ratingMinimum").val().length > 0) {
+            g_advancedFilters[g_MIN_RATING_FILTER] = true;
+        } else {
+            g_advancedFilters[g_MIN_RATING_FILTER] = false;
+        }
+        updateFilterVisuals();
+        refreshResults();
+    });
+    $("#ratingMinimum").keyup(function (e) {
+        if (e.keyCode == 13) {
+            $("#ratingMinimumFilterApply").click();
+        }
+    });
+    $("#ratingMinimumFilterClear").click(function () {
+        $("#ratingMinimum").val("");
+        g_advancedFilters[g_MIN_RATING_FILTER] = false;
+        updateFilterVisuals();
+        refreshResults();
+    });
+}
+
+function initMpaaRatingFilterEventHandlers() {
+    $("#mpaaRatingFilterApply").click(function () {
+        g_advancedFilters[g_MPAA_FILTER] = true;
+        updateFilterVisuals();
+        refreshResults();
+    });
+    $("#mpaaRatingFilterClear").click(function () {
+        g_advancedFilters[g_MPAA_FILTER] = false;
+        updateFilterVisuals();
+        refreshResults();
     });
 }
 
@@ -225,6 +248,12 @@ function compileRequestData(genre) {
         data["vote_average.gte"] = $("#ratingMinimum").val();
     } else {
         data["vote_average.gte"] = 4;
+    }
+    if(g_advancedFilters[g_MPAA_FILTER]) {
+        data["certification_country"] = "US";
+        $('#advancedFilterMpaaRating .btn.active').each(function() {
+            data["certification"] = this.textContent;
+        });
     }
     if (g_advancedFilters[g_ACTOR_FILTER]) {
         $.ajax({
@@ -367,6 +396,13 @@ function updateFilterVisuals() {
         $("#advancedFilterRating").removeClass("has-success");
         $("#ratingMinimumFilterApply").addClass("btn-default").removeClass("btn-success");
     }
+    if (g_advancedFilters[g_MPAA_FILTER]) {
+        $('#advancedFilterMpaaRating .btn.active').each(function() {
+            $(this).removeClass("btn-default").addClass("btn-success");
+        });
+    } else {
+        $('#advancedFilterMpaaRating .btn').removeClass("btn-success").removeClass('active').addClass("btn-default");
+    }
 }
 
 // Knuth shuffle
@@ -388,3 +424,5 @@ function shuffle(array) {
 }
 
 var api_key = "a5d4199b71fd3989796a8f11a0176c28";
+
+

@@ -91,7 +91,7 @@
                                    <button class="btn btn-default" type="button" id="actorFilterClear">Clear</button>
                                         </span>
                         </div>
-                        <div class="input-group" id="advancedFilterRating">
+                        <div class="input-group advancedFilter" id="advancedFilterRating">
                             <input type="number" class="form-control" placeholder="Minimum Rating"
                                    id="ratingMinimum" min="0.0" max="10.0" step=".2">
                             <span class="input-group-btn">
@@ -100,6 +100,19 @@
                                         </span>
 
                         </div>
+                        <div class="input-group" >
+                        <label id="mpaaRatingLabel"><h5>MPAA Rating</h5></label>
+                        <div class="btn-group" data-toggle="buttons" id="advancedFilterMpaaRating">
+                            <label class="btn btn-default mpaaBtn"><input type="radio" class="mpaaCheckbox" value="G">G</label>
+                            <label class="btn btn-default mpaaBtn"><input type="radio" class="mpaaCheckbox" value="PG">PG</label>
+                            <label class="btn btn-default mpaaBtn"><input type="radio" class="mpaaCheckbox" value="PG-13">PG-13</label>
+                            <label class="btn btn-default mpaaBtn"><input type="radio" class="mpaaCheckbox" value="R">R</label>
+                            <label class="btn btn-default mpaaBtn"><input type="radio" class="mpaaCheckbox" value="NC-17">NC-17</label>
+                        </div><span class="input-group-btn">
+                                   <button class="btn btn-default" type="button" id="mpaaRatingFilterApply">Apply</button>
+                                 <button class="btn btn-default" type="button" id="mpaaRatingFilterClear">Clear</button>
+                                        </span>
+                            </div>
                     </div>
                     <div id="collapse1" class="panel-collapse collapse">
                         <div class="panel-body">
