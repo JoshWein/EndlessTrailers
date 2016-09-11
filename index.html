@@ -37,7 +37,7 @@
                         <button class="btn btn-default" type="submit" onclick="searchSubmit()"><i
                                 class="glyphicon glyphicon-search"></i></button>
                     </div>
-                    </div>
+                </div>
             </form>
         </div>
     </div>
@@ -50,6 +50,11 @@
         <div class="row text-center">
             <div class="col-md-6 col-md-push-3">
                 <p id="genreList"></p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 col-md-push-3">
+                <p id="err"></p>
             </div>
         </div>
         <div class="row">
@@ -72,7 +77,8 @@
                                 <span class="input-group-addon">
                                     <input id="ratingCheckbox" type="checkbox" aria-label="...">
                                         </span>
-                                <input type="number" class="form-control" placeholder="Minimum Rating" id="ratingMinimum" min="0.0" max="10.0" step=".2">
+                                <input type="number" class="form-control" placeholder="Minimum Rating"
+                                       id="ratingMinimum" min="0.0" max="10.0" step=".2">
                             </div>
                         </div>
                     </div>
