@@ -295,6 +295,7 @@ function loadPreviousVideo() {
 
 function loadVideo(movie) {
     search(movie.title);
+    $("#movieTitle").html(movie.title);
     showMovieInfo(movie);
 }
 
@@ -396,12 +397,11 @@ function updateFilterVisuals() {
         $("#advancedFilterRating").removeClass("has-success");
         $("#ratingMinimumFilterApply").addClass("btn-default").removeClass("btn-success");
     }
+    $('#advancedFilterMpaaRating .btn').removeClass("btn-success").removeClass('active').addClass("btn-default");
     if (g_advancedFilters[g_MPAA_FILTER]) {
         $('#advancedFilterMpaaRating .btn.active').each(function() {
             $(this).removeClass("btn-default").addClass("btn-success");
         });
-    } else {
-        $('#advancedFilterMpaaRating .btn').removeClass("btn-success").removeClass('active').addClass("btn-default");
     }
 }
 
