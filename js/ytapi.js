@@ -2,7 +2,6 @@
 * Youtube Data/Player API Code
 */
 function init() {
-    console.log("initing")
     gapi.client.setApiKey("AIzaSyDw7S38ScuTjqJ7uQZf9MAyRdhemeUEJnc");
     gapi.client.load("youtube", "v3", function(){
         //ready;
@@ -11,9 +10,6 @@ function init() {
 var player;
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('player', {
-        height: '390',
-        width: '640',
-        videoId: '',
         controls: 2,
         iv_load_policy: 3,
         events: {
@@ -25,7 +21,6 @@ function onYouTubeIframeAPIReady() {
 
 function onPlayerReady(event) {
     // event.target.playVideo();
-    console.log("Player ready");
 }
 
 // when video ends

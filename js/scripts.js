@@ -15,13 +15,11 @@ function getConfiguration() {
         },
         success: function(data) {
             configuration = data;
-            console.log(configuration);
         }
     });
 }
 
 function getGenres() {
-    console.log("a");
     $.ajax({
         url: "https://api.themoviedb.org/3/genre/movie/list",
         data: {
@@ -33,7 +31,6 @@ function getGenres() {
             for(var i = 0; i < data.genres.length; i++) {
                 genreMap[data.genres[i].id] = data.genres[i].name;
             }
-            console.log(genreMap);
         }
     });
 }
@@ -41,6 +38,7 @@ function getGenres() {
 function setupSite(genres) {
     insertGenres(genres);
     initializeEventHandlers();
+    currentMovieList = [];
 }
 
 function insertGenres(genres) {
@@ -62,19 +60,37 @@ function getMovies(genre) {
     compileRequestData(genre);
 }
 
-function getMoviesWithData(data) {
+function getMoviesWithData(data, initialCall, remaining) {
     $.ajax({
         url: "https://api.themoviedb.org/3/discover/movie",
         data: data,
-        success: function(data) {
-            currentMovieList = data.results;
-            // Unique every time!
-            shuffle(currentMovieList);
-            console.log(currentMovieList);
-            currentMovieIndex = 0;
-            loadVideo(currentMovieList[currentMovieIndex]);
+        success: function(response) {
+            currentMovieList = currentMovieList.concat(response.results);
+            if(initialCall) {
+                getMoreMovies(data);
+            }
+            if(remaining === 1) {
+                // Unique for everyone!
+                shuffle(currentMovieList);
+                currentMovieIndex = 0;
+                loadVideo(currentMovieList[currentMovieIndex]);
+            }
         }
     });
+}
+
+function getMoreMovies(data) {
+    currentMovieList = [];
+    var pageCounter;
+    if(data.total_pages < 4) {
+        pageCounter = data.total_pages;
+    } else {
+        pageCounter = 4;
+    }
+    while(pageCounter > 1) {
+        data["page"] = pageCounter--;
+        getMoviesWithData(data, false, pageCounter);
+    }
 }
 
 function compileRequestData(genre) {
@@ -97,12 +113,11 @@ function compileRequestData(genre) {
             },
             success: function(result) {
                 data["with_cast"] = result.results[0].id;
-                console.log(result.results[0].name + " : " + result.results[0].id);
-                getMoviesWithData(data);
+                getMoviesWithData(data, true);
             }
         });
     } else {
-        getMoviesWithData(data);
+        getMoviesWithData(data, true);
     }
 }
 
