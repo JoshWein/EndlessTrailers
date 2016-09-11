@@ -65,7 +65,8 @@
         </div>
         <div class="row text-center">
             <div class="col-md-6 col-md-push-3">
-                <p id="genreList"></p>
+                <div class="well well-sm">
+                <p id="genreList"></p></div>
             </div>
         </div>
         <div class="row">
@@ -84,17 +85,18 @@
                     </div>
                     <div class="panel-body panel-collapse collapse">
                         <div class="input-group advancedFilter">
-                                <span class="input-group-addon">
-                                    <input id="actorCheckbox" type="checkbox" aria-label="...">
-                                        </span>
                             <input type="text" class="form-control" placeholder="Actor" id="actorText">
+                            <span class="input-group-btn">
+                                   <button class="btn btn-default" type="button">Apply</button>
+                                        </span>
+
                         </div>
                         <div class="input-group">
-                                <span class="input-group-addon">
-                                    <input id="ratingCheckbox" type="checkbox" aria-label="...">
-                                        </span>
                             <input type="number" class="form-control" placeholder="Minimum Rating"
                                    id="ratingMinimum" min="0.0" max="10.0" step=".2">
+                            <span class="input-group-btn">
+                                   <button class="btn btn-default" type="button">Apply</button>
+                                        </span>
                         </div>
                         </div>
                     <div id="collapse1" class="panel-collapse collapse">
