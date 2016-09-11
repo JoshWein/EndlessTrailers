@@ -1,7 +1,11 @@
-var currentMovieList;
-var currentMovieIndex;
-var configuration;
-var genreMap;
+var g_currentMovieList;
+var g_currentMovieIndex;
+var g_configuration;
+var g_genreMap;
+var g_advancedFilters;
+var g_NUM_FILTERS;
+var g_ACTOR_FILTER;
+var g_MIN_RATING_FILTER;
 
 function initialSetup() {
     getConfiguration();
@@ -13,8 +17,8 @@ function getConfiguration() {
         data: {
             api_key: api_key
         },
-        success: function(data) {
-            configuration = data;
+        success: function (data) {
+            g_configuration = data;
         }
     });
 }
@@ -25,40 +29,98 @@ function getGenres() {
         data: {
             api_key: api_key
         },
-        success: function(data) {
+        success: function (data) {
             setupSite(data.genres);
-            genreMap = {}
-            for(var i = 0; i < data.genres.length; i++) {
-                genreMap[data.genres[i].id] = data.genres[i].name;
+            g_genreMap = {}
+            for (var i = 0; i < data.genres.length; i++) {
+                g_genreMap[data.genres[i].id] = data.genres[i].name;
             }
         }
     });
 }
 
 function setupSite(genres) {
+    setupFilters();
     insertGenres(genres);
     initializeEventHandlers();
-    currentMovieList = [];
+    g_currentMovieList = [];
+}
+
+function setupFilters() {
+    g_NUM_FILTERS = 2;
+    g_ACTOR_FILTER = 0;
+    g_MIN_RATING_FILTER = 1;
+    g_advancedFilters = [];
+    for (var i = 0; i < g_NUM_FILTERS; i++) {
+        g_advancedFilters[i] = false;
+    }
 }
 
 function insertGenres(genres) {
-    genres.forEach(function(a) {
-            $("#genreList").html($("#genreList").html() + "<div class=\"genreChoice\" id=\""+a.id+"\">"+ a.name + "</div>");
+    genres.forEach(function (a) {
+            $("#genreList").html($("#genreList").html() + "<div class=\"genreChoice\" id=\"" + a.id + "\">" + a.name + "</div>");
         }
     )
 }
 
 function initializeEventHandlers() {
-    $(".genreChoice").click(function() {
+    $(".genreChoice").click(function () {
         getMovies(this.id);
         $(".genreChoice").removeClass("activeGenre");
         $(this).addClass("activeGenre");
     });
-    $("#refreshResults").click(function() {
-        if( $(".activeGenre").length > 0) {
-            getMovies($(".activeGenre")[0].id);
+    $("#refreshResults").click(function () {
+        refreshResults();
+    });
+    initializeFilterEventHandlers();
+}
+
+function initializeFilterEventHandlers() {
+    initializeFilterPanelEventHandlers();
+    $("#actorFilterApply").click(function () {
+        if ($("#actorText").val().length > 0) {
+            g_advancedFilters[g_ACTOR_FILTER] = true;
+        } else {
+            g_advancedFilters[g_ACTOR_FILTER] = false;
+        }
+        updateFilterVisuals();
+        refreshResults();
+    });
+    $("#actorText").keyup(function (e) {
+        if (e.keyCode == 13) {
+            $("#actorFilterApply").click();
         }
     })
+    $("#actorFilterClear").click(function () {
+        $("#actorText").val("");
+        g_advancedFilters[g_ACTOR_FILTER] = false;
+        updateFilterVisuals();
+        refreshResults();
+    });
+    $("#ratingMinimumFilterApply").click(function () {
+        if ($("#ratingMinimum").val().length > 0) {
+            g_advancedFilters[g_MIN_RATING_FILTER] = true;
+        } else {
+            g_advancedFilters[g_MIN_RATING_FILTER] = false;
+        }
+        updateFilterVisuals();
+        refreshResults();
+    });
+    $("#ratingMinimum").keyup(function (e) {
+        if (e.keyCode == 13) {
+            $("#ratingMinimumFilterApply").click();
+        }
+    });
+    $("#ratingMinimumFilterClear").click(function () {
+        $("#ratingMinimum").val("");
+        g_advancedFilters[g_MIN_RATING_FILTER] = false;
+        updateFilterVisuals();
+        refreshResults();
+    });
+
+}
+
+function initializeFilterPanelEventHandlers() {
     $(document).on('click', '.panel-heading span.clickable', function (e) {
         var $this = $(this);
         if (!$this.hasClass('panel-collapsed')) {
@@ -85,6 +147,30 @@ function initializeEventHandlers() {
     });
 }
 
+function refreshResults() {
+    if ($(".activeGenre").length > 0) {
+        getMovies($(".activeGenre")[0].id);
+    } else {
+        if ($("#actorText").val().length > 0) {
+            $.ajax({
+                url: "https://api.themoviedb.org/3/search/person",
+                data: {
+                    api_key: api_key,
+                    query: $("#actorText").val()
+                },
+                success: function (result) {
+                    if (result.results.length > 0) {
+                        $("#actorText").val(result.results[0].name);
+                        ;
+                    } else {
+                        $("#err").html("No results for that actor");
+                    }
+                }
+            });
+        }
+    }
+}
+
 function getMovies(genre) {
     compileRequestData(genre);
 }
@@ -93,19 +179,19 @@ function getMoviesWithData(data, initialCall, remaining) {
     $.ajax({
         url: "https://api.themoviedb.org/3/discover/movie",
         data: data,
-        success: function(response) {
-            if(initialCall) {
-                currentMovieList = [];
+        success: function (response) {
+            if (initialCall) {
+                g_currentMovieList = [];
                 getMoreMovies(data, response);
             }
-            currentMovieList = currentMovieList.concat(response.results);
-            if(remaining === 1) {
-                if(currentMovieList.length > 0) {
+            g_currentMovieList = g_currentMovieList.concat(response.results);
+            if (remaining === 1) {
+                if (g_currentMovieList.length > 0) {
                     $("#err").html("");
                     // Unique for everyone!
-                    shuffle(currentMovieList);
-                    currentMovieIndex = 0;
-                    loadVideo(currentMovieList[currentMovieIndex]);
+                    shuffle(g_currentMovieList);
+                    g_currentMovieIndex = 0;
+                    loadVideo(g_currentMovieList[g_currentMovieIndex]);
                 } else {
                     $("#err").html("No movies found");
                 }
@@ -116,12 +202,12 @@ function getMoviesWithData(data, initialCall, remaining) {
 
 function getMoreMovies(data, response) {
     var pageCounter;
-    if(response.total_pages < 4) {
+    if (response.total_pages < 4) {
         pageCounter = response.total_pages;
     } else {
         pageCounter = 4;
     }
-    while(pageCounter > 1) {
+    while (pageCounter > 1) {
         data["page"] = pageCounter;
         getMoviesWithData(data, false, pageCounter--);
     }
@@ -135,20 +221,21 @@ function compileRequestData(genre) {
         with_genres: genre,
         language: "en"
     };
-    if($("#ratingCheckbox").is(":checked")) {
-        data["vote_average.gte"] =  $("#ratingMinimum").val();
+    if (g_advancedFilters[g_MIN_RATING_FILTER]) {
+        data["vote_average.gte"] = $("#ratingMinimum").val();
     } else {
         data["vote_average.gte"] = 4;
     }
-    if($("#actorCheckbox").is(":checked") && $("#actorText").val().length > 0) {
+    if (g_advancedFilters[g_ACTOR_FILTER]) {
         $.ajax({
             url: "https://api.themoviedb.org/3/search/person",
             data: {
                 api_key: api_key,
                 query: $("#actorText").val()
             },
-            success: function(result) {
-                if(result.results.length > 0) {
+            success: function (result) {
+                if (result.results.length > 0) {
+                    $("#actorText").val(result.results[0].name);
                     data["with_cast"] = result.results[0].id;
                     getMoviesWithData(data, true);
                 } else {
@@ -162,19 +249,19 @@ function compileRequestData(genre) {
 }
 
 function loadNextVideo() {
-    currentMovieIndex++;
-    if(currentMovieIndex > currentMovieList.length - 1) {
-        currentMovieIndex = 0;
+    g_currentMovieIndex++;
+    if (g_currentMovieIndex > g_currentMovieList.length - 1) {
+        g_currentMovieIndex = 0;
     }
-    loadVideo(currentMovieList[currentMovieIndex]);
+    loadVideo(g_currentMovieList[g_currentMovieIndex]);
 }
 
 function loadPreviousVideo() {
-    currentMovieIndex--;
-    if(currentMovieIndex < 0) {
-        currentMovieIndex = currentMovieList.length - 1;
+    g_currentMovieIndex--;
+    if (g_currentMovieIndex < 0) {
+        g_currentMovieIndex = g_currentMovieList.length - 1;
     }
-    loadVideo(currentMovieList[currentMovieIndex]);
+    loadVideo(g_currentMovieList[g_currentMovieIndex]);
 }
 
 function loadVideo(movie) {
@@ -190,22 +277,22 @@ function showMovieInfo(data) {
     loadPoster(data);
     // Set movie info
     $("#movieInfo").html(data.overview);
-    var date = new Date(data.release_date.substring(0, 4), data.release_date.substring(5,7), data.release_date.substring(8,10) );
+    var date = new Date(data.release_date.substring(0, 4), data.release_date.substring(5, 7), data.release_date.substring(8, 10));
     // Set release date
-    $("#releaseDate").html("Release Date: " + monthNames[date.getMonth()] +" " + date.getDate() + ", " + date.getFullYear());
+    $("#releaseDate").html("Release Date: " + monthNames[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear());
     // Set rating
-    $("#rating").html("Rating: " + data.vote_average.toFixed(1) + "/10");
-    $("#canistreamlink").html("<a target=\"_blank\" href=\"http://www.canistream.it/search/movie/"+data.title+"\">Can I Stream It?</a>");
+    $("#rating").html("Rating: " + data.vote_average.toFixed(2) + "/10");
+    $("#canistreamlink").html("<a target=\"_blank\" href=\"http://www.canistream.it/search/movie/" + data.title + "\">Can I Stream It?</a>");
 }
 
 function loadPoster(data) {
-    var base_url = configuration.images.secure_base_url;
-    var size = configuration.images.poster_sizes[0];
-    $("#poster").html("<img src=\"" + base_url+size+data.poster_path + "\">");
+    var base_url = g_configuration.images.secure_base_url;
+    var size = g_configuration.images.poster_sizes[0];
+    $("#poster").html("<img src=\"" + base_url + size + data.poster_path + "\">");
 }
 
-$(function() {
-    $("#trailerSearch").submit(function() {
+$(function () {
+    $("#trailerSearch").submit(function () {
         searchSubmit();
         return false;
     });
@@ -219,14 +306,18 @@ function searchSubmit() {
 
 // Search for a specified string.
 function search(q) {
+    var queryAddon = " trailer";
+    if (g_advancedFilters[g_ACTOR_FILTER]) {
+        queryAddon += " " + $("#actorText").val();
+    }
     var request = gapi.client.youtube.search.list({
-        q: q + " trailer",
+        q: q + queryAddon,
         part: 'snippet',
         type: "video",
         maxResults: 1
     });
 
-    request.execute(function(response) {
+    request.execute(function (response) {
         player.loadVideoById(response.items[0].id.videoId, 1, "default");
     });
 }
@@ -239,8 +330,8 @@ function getMovieInfo(query) {
             api_key: api_key,
             query: query
         },
-        success: function(response) {
-            if(response.results.length > 0) {
+        success: function (response) {
+            if (response.results.length > 0) {
                 $("#movieTitle").html(response.results[0].original_title);
                 showMovieInfo(response.results[0])
             } else {
@@ -259,6 +350,23 @@ function clearMovieInfo() {
     $("#canistreamlink").html("");
     $("#poster").html("");
     $("#err").html("");
+}
+
+function updateFilterVisuals() {
+    if (g_advancedFilters[g_ACTOR_FILTER]) {
+        $("#advancedFilterActor").addClass("has-success");
+        $("#actorFilterApply").removeClass("btn-default").addClass("btn-success");
+    } else {
+        $("#advancedFilterActor").removeClass("has-success");
+        $("#actorFilterApply").addClass("btn-default").removeClass("btn-success");
+    }
+    if (g_advancedFilters[g_MIN_RATING_FILTER]) {
+        $("#advancedFilterRating").addClass("has-success");
+        $("#ratingMinimumFilterApply").removeClass("btn-default").addClass("btn-success");
+    } else {
+        $("#advancedFilterRating").removeClass("has-success");
+        $("#ratingMinimumFilterApply").addClass("btn-default").removeClass("btn-success");
+    }
 }
 
 // Knuth shuffle
