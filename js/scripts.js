@@ -59,6 +59,30 @@ function initializeEventHandlers() {
             getMovies($(".activeGenre")[0].id);
         }
     })
+    $(document).on('click', '.panel-heading span.clickable', function (e) {
+        var $this = $(this);
+        if (!$this.hasClass('panel-collapsed')) {
+            $this.parents('.panel').find('.panel-body').slideUp();
+            $this.addClass('panel-collapsed');
+            $this.find('i').removeClass('glyphicon-minus').addClass('glyphicon-plus');
+        } else {
+            $this.parents('.panel').find('.panel-body').slideDown();
+            $this.removeClass('panel-collapsed');
+            $this.find('i').removeClass('glyphicon-plus').addClass('glyphicon-minus');
+        }
+    });
+    $(document).on('click', '.panel div.clickable', function (e) {
+        var $this = $(this);
+        if (!$this.hasClass('panel-collapsed')) {
+            $this.parents('.panel').find('.panel-body').slideUp();
+            $this.addClass('panel-collapsed');
+            $this.find('i').removeClass('glyphicon-minus').addClass('glyphicon-plus');
+        } else {
+            $this.parents('.panel').find('.panel-body').slideDown();
+            $this.removeClass('panel-collapsed');
+            $this.find('i').removeClass('glyphicon-plus').addClass('glyphicon-minus');
+        }
+    });
 }
 
 function getMovies(genre) {
@@ -77,6 +101,7 @@ function getMoviesWithData(data, initialCall, remaining) {
             currentMovieList = currentMovieList.concat(response.results);
             if(remaining === 1) {
                 if(currentMovieList.length > 0) {
+                    $("#err").html("");
                     // Unique for everyone!
                     shuffle(currentMovieList);
                     currentMovieIndex = 0;
@@ -103,6 +128,7 @@ function getMoreMovies(data, response) {
     getMoviesWithData(data, false, pageCounter);
 }
 
+// Build the data request object based on genre choice and advanced filters
 function compileRequestData(genre) {
     var data = {
         api_key: api_key,
@@ -114,7 +140,7 @@ function compileRequestData(genre) {
     } else {
         data["vote_average.gte"] = 4;
     }
-    if($("#actorCheckbox").is(":checked")) {
+    if($("#actorCheckbox").is(":checked") && $("#actorText").val().length > 0) {
         $.ajax({
             url: "https://api.themoviedb.org/3/search/person",
             data: {
@@ -232,6 +258,7 @@ function clearMovieInfo() {
     $("#rating").html("");
     $("#canistreamlink").html("");
     $("#poster").html("");
+    $("#err").html("");
 }
 
 // Knuth shuffle
