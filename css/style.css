@@ -102,3 +102,9 @@ a.clickable:hover { text-decoration:none; }
 .mpaaBtn {
     width: 20%
 }
+
+@media(max-width:767px){
+    .mpaaBtn {
+        width: 40%
+    }
+}
