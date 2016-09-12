@@ -52,11 +52,11 @@
 }
 
 body {
-    background: rgb(242,249,254); /* Old browsers */
-    background: -moz-linear-gradient(left, rgba(242,249,254,1) 0%, rgba(214,240,253,1) 100%); /* FF3.6-15 */
-    background: -webkit-linear-gradient(left, rgba(242,249,254,1) 0%,rgba(214,240,253,1) 100%); /* Chrome10-25,Safari5.1-6 */
-    background: linear-gradient(to right, rgba(242,249,254,1) 0%,rgba(214,240,253,1) 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#f2f9fe', endColorstr='#d6f0fd',GradientType=1 ); /* IE6-9 */
+    background: rgb(242, 249, 254); /* Old browsers */
+    background: -moz-linear-gradient(left, rgba(242, 249, 254, 1) 0%, rgba(214, 240, 253, 1) 100%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(left, rgba(242, 249, 254, 1) 0%, rgba(214, 240, 253, 1) 100%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(to right, rgba(242, 249, 254, 1) 0%, rgba(214, 240, 253, 1) 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#f2f9fe', endColorstr='#d6f0fd', GradientType=1); /* IE6-9 */
 }
 
 .panel-group {
@@ -67,27 +67,30 @@ body {
     margin-bottom: 5px;
 }
 
-.clickable
-{
+.clickable {
     cursor: pointer;
 }
 
-.clickable .glyphicon
-{
+.clickable .glyphicon {
     background: rgba(55, 55, 55, 0.15);
     display: inline-block;
     padding: 6px 12px;
     border-radius: 4px
 }
 
-.panel-heading span
-{
+.panel-heading span {
     margin-top: -23px;
     font-size: 15px;
     margin-right: -9px;
 }
-a.clickable { color: inherit; }
-a.clickable:hover { text-decoration:none; }
+
+a.clickable {
+    color: inherit;
+}
+
+a.clickable:hover {
+    text-decoration: none;
+}
 
 #mpaaRatingLabel {
     width: 105%;
@@ -103,14 +106,21 @@ a.clickable:hover { text-decoration:none; }
     width: 20%
 }
 
-@media(max-width:767px){
+#mpaaRatingFilterApply {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+@media (max-width: 767px) {
     .mpaaBtn {
         width: 45%;
         border-radius: 0px;
     }
+
     .firstRow {
         right: 1px;
     }
+
     #advancedFilterMpaaRating {
         width: 100%;
     }
