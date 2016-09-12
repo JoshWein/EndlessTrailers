@@ -90,13 +90,13 @@ a.clickable { color: inherit; }
 a.clickable:hover { text-decoration:none; }
 
 #mpaaRatingLabel {
-    width: 25%;
+    width: 105%;
     text-align: center;
     margin-bottom: 0px;
 }
 
 #advancedFilterMpaaRating {
-    width: 75%;
+    width: 100%;
 }
 
 .mpaaBtn {
@@ -105,6 +105,13 @@ a.clickable:hover { text-decoration:none; }
 
 @media(max-width:767px){
     .mpaaBtn {
-        width: 40%
+        width: 45%;
+        border-radius: 0px;
+    }
+    .firstRow {
+        right: 1px;
+    }
+    #advancedFilterMpaaRating {
+        width: 100%;
     }
 }
