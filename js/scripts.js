@@ -69,6 +69,13 @@ function initializeEventHandlers() {
     $(".genreChoice").click(function () {
         getMovies(this.id);
         $(".genreChoice").removeClass("activeGenre");
+        $(".extraGenreChoice").removeClass("activeGenre");
+        $(this).addClass("activeGenre");
+    });
+    $(".extraGenreChoice").click(function () {
+        getMoviesSpecialList(this.id);
+        $(".genreChoice").removeClass("activeGenre");
+        $(".extraGenreChoice").removeClass("activeGenre");
         $(this).addClass("activeGenre");
     });
     $("#refreshResults").click(function () {
@@ -196,6 +203,36 @@ function refreshResults() {
 
 function getMovies(genre) {
     compileRequestData(genre);
+}
+
+function getMoviesSpecialList(id) {
+    var url = "https://api.themoviedb.org/3/movie/" + id;
+    var data = {
+        api_key: api_key,
+    };
+    $.ajax({
+        url: url,
+        data: data,
+        success: function (response) {
+            // if (initialCall) {
+            //     g_currentMovieList = [];
+            //     getMoreMovies(data, response);
+            // }
+            g_currentMovieList = [];
+            g_currentMovieList = g_currentMovieList.concat(response.results);
+            // if (remaining === 1) {
+                if (g_currentMovieList.length > 0) {
+                    $("#err").html("");
+                    // Unique for everyone!
+                    shuffle(g_currentMovieList);
+                    g_currentMovieIndex = 0;
+                    loadVideo(g_currentMovieList[g_currentMovieIndex]);
+                } else {
+                    $("#err").html("No movies found");
+                }
+            // }
+        }
+    });
 }
 
 function getMoviesWithData(data, initialCall, remaining) {
