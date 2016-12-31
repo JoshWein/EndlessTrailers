@@ -8,10 +8,10 @@
         (function (i, s, o, g, r, a, m) {
             i['GoogleAnalyticsObject'] = r;
             i[r] = i[r] || function () {
-                        (i[r].q = i[r].q || []).push(arguments)
-                    }, i[r].l = 1 * new Date();
+                    (i[r].q = i[r].q || []).push(arguments)
+                }, i[r].l = 1 * new Date();
             a = s.createElement(o),
-                    m = s.getElementsByTagName(o)[0];
+                m = s.getElementsByTagName(o)[0];
             a.async = 1;
             a.src = g;
             m.parentNode.insertBefore(a, m)
@@ -24,16 +24,19 @@
     <script src="js/ytapi.js"></script>
     <script src="js/scripts.js"></script>
     <script src="https://apis.google.com/js/client.js?onload=init"></script>
-    <script src="http://www.youtube.com/player_api"></script>
+    <script src="https://www.youtube.com/player_api"></script>
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+          rel="stylesheet">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
           integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
           integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
-    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body onload="initialSetup()">
-<nav class="navbar navbar-default navbar-fixed-top">
+<nav class="navbar navbar-default navbar-fixed-top" id="navbar">
     <div class="container">
         <div class="navbar-header">
             <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
@@ -65,7 +68,11 @@
         </div>
         <div class="row text-center">
             <div class="col-md-6 col-md-push-3">
-                <p id="genreList"></p>
+                <div class="spinner">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+                <p id="genreList">Loading Genres...</p>
             </div>
         </div>
         <div class="row text-center">
@@ -86,7 +93,7 @@
         <div class="row">
             <div class="panel-group col-md-6 col-md-push-3">
                 <div class="panel panel-default">
-                    <div class="panel-heading clickable panel-collapsed">
+                    <div class="panel-heading clickable panel-collapsed" id="filter-panel-heading">
                         <h4 class="panel-title">
                             <a data-toggle="collapse" href="#collapse1">Advanced Filters</a>
                         </h4>
@@ -158,35 +165,38 @@
                 </div>
             </div>
         </div>
-        <div class="row movieData">
-            <div class="col-xs-4 col-md-1 col-md-push-3 text-center" id="poster">
+        <div class="col-md-6 col-md-push-3" id="movie-info-container">
+            <div class="row movieData">
+                <div class="col-xs-4 col-md-2 text-center" id="poster">
 
-            </div>
-            <div class="col-xs-8 col-md-8 col-md-push-3">
-                <div class="row">
-                    <div class="col-xs-12">
-                        <h5 id="releaseDate"></h5>
+                </div>
+                <div class="col-xs-8 col-md-10">
+                    <div class="row">
+                        <div class="col-xs-12">
+                            <h5 id="releaseDate"></h5>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-xs-12">
+                            <h5 id="rating"></h5>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-xs-12">
+                            <h5 id="canistreamlink"></h5>
+                        </div>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-xs-12">
-                        <h5 id="rating"></h5>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-xs-12">
-                        <h5 id="canistreamlink"></h5>
-                    </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <p id="movieInfo"></p>
                 </div>
             </div>
-        </div>
-        <div class="row">
-            <div class="col-md-6 col-md-push-3">
-                <p id="movieInfo"></p>
+            <div class="row text-center">
+                <h4>Movie data from <a href="https://www.themoviedb.org/">The Movie DB</a></h4>
             </div>
-        </div>
-        <div class="row text-center">
-            <h4>Movie data from <a href="https://www.themoviedb.org/">The Movie DB</a></h4>
         </div>
     </div>
 </div>

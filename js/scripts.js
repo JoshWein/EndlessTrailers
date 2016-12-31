@@ -59,6 +59,9 @@ function setupFilters() {
 }
 
 function insertGenres(genres) {
+    $(".spinner").addClass("hidden");
+    $("#genreList").html("");
+
     genres.forEach(function (a) {
             $("#genreList").html($("#genreList").html() + "<div class=\"genreChoice\" id=\"" + a.id + "\">" + a.name + "</div>");
         }
@@ -221,15 +224,15 @@ function getMoviesSpecialList(id) {
             g_currentMovieList = [];
             g_currentMovieList = g_currentMovieList.concat(response.results);
             // if (remaining === 1) {
-                if (g_currentMovieList.length > 0) {
-                    $("#err").html("");
-                    // Unique for everyone!
-                    shuffle(g_currentMovieList);
-                    g_currentMovieIndex = 0;
-                    loadVideo(g_currentMovieList[g_currentMovieIndex]);
-                } else {
-                    $("#err").html("No movies found");
-                }
+            if (g_currentMovieList.length > 0) {
+                $("#err").html("");
+                // Unique for everyone!
+                shuffle(g_currentMovieList);
+                g_currentMovieIndex = 0;
+                loadVideo(g_currentMovieList[g_currentMovieIndex]);
+            } else {
+                $("#err").html("No movies found");
+            }
             // }
         }
     });
@@ -366,6 +369,7 @@ $(function () {
 });
 
 function searchSubmit() {
+    console.log($("#searchText").val());
     search($("#searchText").val());
     getMovieInfo($("#searchText").val());
     return false;
