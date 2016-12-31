@@ -1,4 +1,4 @@
 # EndlessTrailers
 Website for watching trailers
 
-Hosted at http://www.joshwein.xyz/EndlessTrailers/
+Hosted at https://endlesstrailers.com/
