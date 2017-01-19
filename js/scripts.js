@@ -7,6 +7,8 @@ var g_NUM_FILTERS;
 var g_ACTOR_FILTER;
 var g_MIN_RATING_FILTER;
 var g_MPAA_FILTER;
+var g_DEFAULT_REGION = "us";
+var g_numpages = 5;
 
 function initialSetup() {
     getConfiguration();
@@ -212,6 +214,7 @@ function getMoviesSpecialList(id) {
     var url = "https://api.themoviedb.org/3/movie/" + id;
     var data = {
         api_key: api_key,
+        region: g_DEFAULT_REGION
     };
     $.ajax({
         url: url,
@@ -253,6 +256,7 @@ function getMoviesWithData(data, initialCall, remaining) {
                     $("#err").html("");
                     // Unique for everyone!
                     shuffle(g_currentMovieList);
+                    console.log(g_currentMovieList);
                     g_currentMovieIndex = 0;
                     loadVideo(g_currentMovieList[g_currentMovieIndex]);
                 } else {
@@ -265,10 +269,10 @@ function getMoviesWithData(data, initialCall, remaining) {
 
 function getMoreMovies(data, response) {
     var pageCounter;
-    if (response.total_pages < 4) {
+    if (response.total_pages < g_numpages) {
         pageCounter = response.total_pages;
     } else {
-        pageCounter = 4;
+        pageCounter = g_numpages;
     }
     while (pageCounter > 1) {
         data["page"] = pageCounter;
