@@ -94,10 +94,18 @@
 						</div>
 						<div class="panel-body panel-collapse collapse">
 							<div class="input-group advancedFilter" id="advancedFilterActor">
-								<input class="form-control" id="actorText" placeholder="Actor" type="text"> <span class="input-group-btn"><button class="btn btn-default" id="actorFilterApply" type="button"><span class="input-group-btn">Apply</span> <button class="btn btn-default" id="actorFilterClear" type="button">Clear</button></button></span>
+								<input class="form-control" id="actorText" placeholder="Actor" type="text">
+								<span class="input-group-btn">
+									<button class="btn btn-default" id="actorFilterApply" type="button">Apply</button>
+									<button class="btn btn-default" id="actorFilterClear" type="button">Clear</button>
+								</span>
 							</div>
 							<div class="input-group advancedFilter" id="advancedFilterRating">
-								<input class="form-control" id="ratingMinimum" max="10.0" min="0.0" placeholder="Minimum Rating" step=".2" type="number"> <span class="input-group-btn"><button class="btn btn-default" id="ratingMinimumFilterApply" type="button"><span class="input-group-btn">Apply</span> <button class="btn btn-default" id="ratingMinimumFilterClear" type="button">Clear</button></button></span>
+								<input class="form-control" id="ratingMinimum" max="10.0" min="0.0" placeholder="Minimum Rating" step=".2" type="number">
+								<span class="input-group-btn">
+									<button class="btn btn-default" id="ratingMinimumFilterApply" type="button">Apply</button>
+									<button class="btn btn-default" id="ratingMinimumFilterClear" type="button">Clear</button>
+								</span>
 							</div>
 							<div class="row text-center">
 								<div class="col-xs-12">
@@ -107,8 +115,16 @@
 							</div>
 							<div class="input-group">
 								<div class="btn-group" data-toggle="buttons" id="advancedFilterMpaaRating">
-									<label class="btn btn-default mpaaBtn firstRow"><input class="mpaaCheckbox" type="radio" value="G">G</label> <label class="btn btn-default mpaaBtn firstRow"><input class="mpaaCheckbox" type="radio" value="PG">PG</label> <label class="btn btn-default mpaaBtn"><input class="mpaaCheckbox" type="radio" value="PG-13">PG-13</label> <label class="btn btn-default mpaaBtn"><input class="mpaaCheckbox" type="radio" value="R">R</label> <label class="btn btn-default mpaaBtn"><input class="mpaaCheckbox" type="radio" value="NC-17">NC-17</label>
-								</div><span class="input-group-btn"><button class="btn btn-default" id="mpaaRatingFilterApply" type="button"><span class="input-group-btn">Apply</span> <button class="btn btn-default" id="mpaaRatingFilterClear" type="button">Clear</button></button></span>
+									<label class="btn btn-default mpaaBtn firstRow"><input class="mpaaCheckbox" type="radio" value="G">G</label>
+									<label class="btn btn-default mpaaBtn firstRow"><input class="mpaaCheckbox" type="radio" value="PG">PG</label>
+									<label class="btn btn-default mpaaBtn"><input class="mpaaCheckbox" type="radio" value="PG-13">PG-13</label>
+									<label class="btn btn-default mpaaBtn"><input class="mpaaCheckbox" type="radio" value="R">R</label>
+									<label class="btn btn-default mpaaBtn"><input class="mpaaCheckbox" type="radio" value="NC-17">NC-17</label>
+								</div>
+								<span class="input-group-btn">
+									<button class="btn btn-default" id="mpaaRatingFilterApply" type="button">Apply</button>
+									<button class="btn btn-default" id="mpaaRatingFilterClear" type="button">Clear</button>
+								</span>
 							</div>
 						</div>
 					</div>
@@ -169,13 +185,13 @@
 </body>
 <script src="https://www.gstatic.com/firebasejs/3.6.6/firebase.js"></script>
 <script>
-  var config = {
-  	apiKey: "AIzaSyDGu2cJNsq3PAPF4k_01ZFxgve0prSybHQ",
-  	authDomain: "endlesstrailers.firebaseapp.com",
-  	databaseURL: "https://endlesstrailers.firebaseio.com",
-  	storageBucket: "endlesstrailers.appspot.com",
-  	messagingSenderId: "234170023225"
-  };
-  firebase.initializeApp(config);
+	var config = {
+		apiKey: "AIzaSyDGu2cJNsq3PAPF4k_01ZFxgve0prSybHQ",
+		authDomain: "endlesstrailers.firebaseapp.com",
+		databaseURL: "https://endlesstrailers.firebaseio.com",
+		storageBucket: "endlesstrailers.appspot.com",
+		messagingSenderId: "234170023225"
+	};
+	firebase.initializeApp(config);
 </script>
 </html>
