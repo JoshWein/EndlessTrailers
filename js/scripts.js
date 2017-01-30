@@ -343,15 +343,16 @@ function loadVideo(movie) {
     showMovieInfo(movie);
 }
 
-var monthNames = ["January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-];
+var monthNames = ["December", "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November"];
 
 function showMovieInfo(data) {
     loadPoster(data);
     // Set movie info
     $("#movieInfo").html(data.overview);
+    console.log(data.release_date);
     var date = new Date(data.release_date.substring(0, 4), data.release_date.substring(5, 7), data.release_date.substring(8, 10));
+    console.log(date);
     // Set release date
     $("#releaseDate").html("Release Date: " + monthNames[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear());
     // Set rating
