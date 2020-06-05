@@ -2,7 +2,7 @@
 * Youtube Data/Player API Code
 */
 function init() {
-    gapi.client.setApiKey("AIzaSyDw7S38ScuTjqJ7uQZf9MAyRdhemeUEJnc");
+    gapi.client.setApiKey("AIzaSyBH7fP5kldmBUXnpUSP8dkgAZHvDKnNRSk");
     gapi.client.load("youtube", "v3", function(){
         //ready;
     })
