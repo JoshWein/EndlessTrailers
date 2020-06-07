@@ -9,19 +9,39 @@ var g_MIN_RATING_FILTER;
 var g_MPAA_FILTER;
 var g_DEFAULT_REGION = "us";
 var g_numpages = 5;
+var remoteConfig;
 
 function initialSetup() {
-    getConfiguration();
-    getGenres();
+    remoteConfig = firebase.remoteConfig();
+    remoteConfig.settings = {
+      minimumFetchIntervalMillis: 3600000,
+    };
+
+    remoteConfig.defaultConfig = ({
+      'yt_api_key': 'not_set',
+    });
+
+remoteConfig.fetchAndActivate()
+  .then(() => {
+    initYoutube();
+    getMovieDbConfiguration();
+  })
+  .catch((err) => {
+    console.error(err);
+});
+    
 }
-function getConfiguration() {
+function getMovieDbConfiguration() {
+    console.log(remoteConfig.getAll());
     $.ajax({
         url: "https://api.themoviedb.org/3/configuration",
         data: {
-            api_key: api_key
+            api_key: remoteConfig.getString('mdb_api_key')
         },
         success: function (data) {
+            console.log("Got Movie DB configuration");
             g_configuration = data;
+            getGenres();
         }
     });
 }
@@ -30,7 +50,7 @@ function getGenres() {
     $.ajax({
         url: "https://api.themoviedb.org/3/genre/movie/list",
         data: {
-            api_key: api_key
+            api_key: remoteConfig.getString('mdb_api_key')
         },
         success: function (data) {
             setupSite(data.genres);
@@ -61,27 +81,30 @@ function setupFilters() {
 }
 
 function insertGenres(genres) {
-    $(".spinner").addClass("hidden");
-    $("#genreList").html("");
-
+    console.log("Genres loaded");
+    $("#genre_spinner").addClass("d-none");
     genres.forEach(function (a) {
-            $("#genreList").html($("#genreList").html() + "<div class=\"genreChoice\" id=\"" + a.id + "\">" + a.name + "</div>");
+            $("#genreList").append("<option class=\"genreChoice\" id=\"" + a.id + "\" value=\"" + a.id + "\">" + a.name + "</option>");
         }
-    )
+    );
 }
 
 function initializeEventHandlers() {
-    $(".genreChoice").click(function () {
-        getMovies(this.id);
-        $(".genreChoice").removeClass("activeGenre");
-        $(".extraGenreChoice").removeClass("activeGenre");
-        $(this).addClass("activeGenre");
-    });
-    $(".extraGenreChoice").click(function () {
-        getMoviesSpecialList(this.id);
-        $(".genreChoice").removeClass("activeGenre");
-        $(".extraGenreChoice").removeClass("activeGenre");
-        $(this).addClass("activeGenre");
+    console.log("Setting up event handlers");
+    $("#genreList").change(function () {
+        console.log("I'VE BEEN CLICKED");
+        var classNames = this.selectedOptions.item(0).className;
+        if (classNames.includes("extraGenreChoice")) {
+            getMoviesSpecialList(this.selectedOptions.item(0).id);
+            $(".genreChoice").removeClass("activeGenre");
+            $(".extraGenreChoice").removeClass("activeGenre");
+            $(this).addClass("activeGenre");
+        } else {
+            getMovies(this.value);
+            $(".genreChoice").removeClass("activeGenre");
+            $(".extraGenreChoice").removeClass("activeGenre");
+            $(this).addClass("activeGenre");
+        }
     });
     $("#refreshResults").click(function () {
         refreshResults();
@@ -357,7 +380,7 @@ function showMovieInfo(data) {
     $("#releaseDate").html("Release Date: " + monthNames[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear());
     // Set rating
     $("#rating").html("Rating: " + data.vote_average.toFixed(2) + "/10");
-    $("#canistreamlink").html("<a target=\"_blank\" href=\"http://www.canistream.it/search/movie/" + data.title + "\">Can I Stream It?</a>");
+    $("#canistreamlink").html("<a target=\"_blank\" href=\"https://www.justwatch.com/us/search?q=" + data.title + "\">Can I Stream It?</a>");
 }
 
 function loadPoster(data) {
@@ -472,5 +495,7 @@ function shuffle(array) {
 }
 
 var api_key = "a5d4199b71fd3989796a8f11a0176c28";
-
+$( document ).ready(function() {
+   initialSetup();
+});
 

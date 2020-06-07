@@ -1,12 +1,25 @@
 /**
 * Youtube Data/Player API Code
 */
-function init() {
-    gapi.client.setApiKey("AIzaSyBH7fP5kldmBUXnpUSP8dkgAZHvDKnNRSk");
-    gapi.client.load("youtube", "v3", function(){
-        //ready;
-    })
+var g_youtube_api_created = false;
+function initYoutube() {
+    if (!g_youtube_api_created && remoteConfig.getString('yt_api_key') !== 'not_set') {
+        console.log("Creating youtube api client");
+        gapi.client.setApiKey(remoteConfig.getString('yt_api_key'));
+        gapi.client.load("youtube", "v3", function(){
+            //ready;
+            console.log("Client Ready");
+        });
+        g_youtube_api_created = true;
+    }
 }
+
+googleApiClientReady = function() {
+  gapi.auth.init(function() {
+    window.setTimeout(checkAuth, 1);
+  });
+}
+
 var player;
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('player', {
@@ -20,7 +33,7 @@ function onYouTubeIframeAPIReady() {
 }
 
 function onPlayerReady(event) {
-    // event.target.playVideo();
+    console.log("Video Player ready");
 }
 
 // when video ends
