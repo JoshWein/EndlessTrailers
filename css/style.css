@@ -2,27 +2,6 @@
     padding-top: 75px;
 }
 
-.genreChoice, .extraGenreChoice {
-    padding: 5px;
-    display: inline-flex;
-    color: #838383;
-    margin: 2px;
-    border-radius: 5px;
-    border: 2px solid;
-    cursor: pointer;
-    background: #fafafa;
-}
-
-.genreChoice:hover, .extraGenreChoice:hover {
-    transition: all 0.3s ease;
-    color: black;
-}
-
-.activeGenre {
-    color: black;
-    background-color: #fffdea;
-}
-
 .videoControlsGroup {
     width: 100%;
 }
@@ -40,47 +19,13 @@
     padding-bottom: 10px;
 }
 
-#filter-panel-heading {
-    /*background: #9dd552;*/
-}
-
-.panel-group {
-    margin-bottom: 0;
-}
-
 .advancedFilter {
     margin-bottom: 5px;
 }
 
-.clickable {
-    cursor: pointer;
-}
-
-.clickable .glyphicon {
-    background: rgba(55, 55, 55, 0.15);
-    display: inline-block;
-    padding: 6px 12px;
-    border-radius: 4px
-}
-
-.panel-heading span {
-    margin-top: -23px;
-    font-size: 15px;
-    margin-right: -9px;
-}
-
-a.clickable {
-    color: inherit;
-}
-
-a.clickable:hover {
-    text-decoration: none;
-}
-
 #mpaaRatingLabel {
-    width: 105%;
     text-align: center;
-    margin-bottom: 0px;
+    margin: 0.25rem 0;
 }
 
 #advancedFilterMpaaRating {
@@ -106,22 +51,3 @@ a.clickable:hover {
       }
 }
 
-#mpaaRatingFilterApply {
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 4px;
-}
-
-@media (max-width: 767px) {
-    .mpaaBtn {
-        width: 45%;
-        border-radius: 0px;
-    }
-
-    .firstRow {
-        right: 1px;
-    }
-
-    #advancedFilterMpaaRating {
-        width: 100%;
-    }
-}
