@@ -14,12 +14,6 @@ function initYoutube() {
     }
 }
 
-googleApiClientReady = function() {
-  gapi.auth.init(function() {
-    window.setTimeout(checkAuth, 1);
-  });
-}
-
 var player;
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('player', {

@@ -1,501 +1,320 @@
-var g_currentMovieList;
-var g_currentMovieIndex;
-var g_configuration;
-var g_genreMap;
-var g_advancedFilters;
-var g_NUM_FILTERS;
-var g_ACTOR_FILTER;
-var g_MIN_RATING_FILTER;
-var g_MPAA_FILTER;
-var g_DEFAULT_REGION = "us";
-var g_numpages = 5;
-var remoteConfig;
+/**
+ * Created by Josh on 9/10/2016.
+ * Plain JS (no jQuery) since 2026.
+ */
+const TMDB = "https://api.themoviedb.org/3";
+const FALLBACK_TMDB_KEY = "a5d4199b71fd3989796a8f11a0176c28";
+const DEFAULT_REGION = "us";
+const NUM_PAGES = 5;
+
+let remoteConfig;
+let g_configuration;
+let g_currentMovieList = [];
+let g_currentMovieIndex = 0;
+// What the genre dropdown last picked: {type: "genre" | "list", id}
+let g_currentSelection = null;
+
+const filters = { actor: false, minRating: false, mpaa: false };
+
+const $id = (id) => document.getElementById(id);
+
+function tmdbKey() {
+    const key = remoteConfig ? remoteConfig.getString("mdb_api_key") : "";
+    return key || FALLBACK_TMDB_KEY;
+}
+
+async function tmdb(path, params = {}) {
+    const query = new URLSearchParams({ api_key: tmdbKey(), ...params });
+    const res = await fetch(`${TMDB}${path}?${query}`);
+    if (!res.ok) {
+        throw new Error(`TMDB ${path} returned ${res.status}`);
+    }
+    return res.json();
+}
+
+function setError(msg) {
+    $id("err").textContent = msg;
+}
 
 function initialSetup() {
     remoteConfig = firebase.remoteConfig();
-    remoteConfig.settings = {
-      minimumFetchIntervalMillis: 3600000,
-    };
+    remoteConfig.settings = { minimumFetchIntervalMillis: 3600000 };
+    remoteConfig.defaultConfig = { yt_api_key: "not_set" };
 
-    remoteConfig.defaultConfig = ({
-      'yt_api_key': 'not_set',
-    });
-
-remoteConfig.fetchAndActivate()
-  .then(() => {
-    initYoutube();
-    getMovieDbConfiguration();
-  })
-  .catch((err) => {
-    console.error(err);
-});
-    
-}
-function getMovieDbConfiguration() {
-    console.log(remoteConfig.getAll());
-    $.ajax({
-        url: "https://api.themoviedb.org/3/configuration",
-        data: {
-            api_key: remoteConfig.getString('mdb_api_key')
-        },
-        success: function (data) {
-            console.log("Got Movie DB configuration");
-            g_configuration = data;
-            getGenres();
-        }
-    });
+    remoteConfig.fetchAndActivate()
+        .catch((err) => console.error(err))
+        .then(() => {
+            initYoutube();
+            return loadMovieDb();
+        })
+        .catch((err) => {
+            console.error(err);
+            setError("Couldn't reach The Movie DB. Try reloading.");
+        });
 }
 
-function getGenres() {
-    $.ajax({
-        url: "https://api.themoviedb.org/3/genre/movie/list",
-        data: {
-            api_key: remoteConfig.getString('mdb_api_key')
-        },
-        success: function (data) {
-            setupSite(data.genres);
-            g_genreMap = {}
-            for (var i = 0; i < data.genres.length; i++) {
-                g_genreMap[data.genres[i].id] = data.genres[i].name;
-            }
-        }
-    });
-}
-
-function setupSite(genres) {
-    setupFilters();
+async function loadMovieDb() {
+    g_configuration = await tmdb("/configuration");
+    const { genres } = await tmdb("/genre/movie/list");
     insertGenres(genres);
     initializeEventHandlers();
-    g_currentMovieList = [];
-}
-
-function setupFilters() {
-    g_NUM_FILTERS = 2;
-    g_ACTOR_FILTER = 0;
-    g_MIN_RATING_FILTER = 1;
-    g_MPAA_FILTER = 3;
-    g_advancedFilters = [];
-    for (var i = 0; i < g_NUM_FILTERS; i++) {
-        g_advancedFilters[i] = false;
-    }
 }
 
 function insertGenres(genres) {
-    console.log("Genres loaded");
-    $("#genre_spinner").addClass("d-none");
-    genres.forEach(function (a) {
-            $("#genreList").append("<option class=\"genreChoice\" id=\"" + a.id + "\" value=\"" + a.id + "\">" + a.name + "</option>");
-        }
-    );
+    const list = $id("genreList");
+    genres.forEach((genre) => {
+        const option = document.createElement("option");
+        option.className = "genreChoice";
+        option.value = genre.id;
+        option.textContent = genre.name;
+        list.appendChild(option);
+    });
 }
 
 function initializeEventHandlers() {
-    console.log("Setting up event handlers");
-    $("#genreList").change(function () {
-        console.log("I'VE BEEN CLICKED");
-        var classNames = this.selectedOptions.item(0).className;
-        if (classNames.includes("extraGenreChoice")) {
-            getMoviesSpecialList(this.selectedOptions.item(0).id);
-            $(".genreChoice").removeClass("activeGenre");
-            $(".extraGenreChoice").removeClass("activeGenre");
-            $(this).addClass("activeGenre");
+    $id("genreList").addEventListener("change", function () {
+        const option = this.selectedOptions[0];
+        if (option.classList.contains("extraGenreChoice")) {
+            g_currentSelection = { type: "list", id: option.value };
+        } else if (option.classList.contains("genreChoice")) {
+            g_currentSelection = { type: "genre", id: option.value };
         } else {
-            getMovies(this.value);
-            $(".genreChoice").removeClass("activeGenre");
-            $(".extraGenreChoice").removeClass("activeGenre");
-            $(this).addClass("activeGenre");
+            return; // "Choose Genre..." placeholder
         }
-    });
-    $("#refreshResults").click(function () {
         refreshResults();
     });
-    initializeFilterEventHandlers();
-}
 
-function initializeFilterEventHandlers() {
-    initializeFilterPanelEventHandlers();
-    initializeActorFilterEventHandlers();
-    initMinRatingFilterEventHandlers();
-    initMpaaRatingFilterEventHandlers();
-}
+    bindFilter("actor", "actorText", "actorFilterApply", "actorFilterClear");
+    bindFilter("minRating", "ratingMinimum", "ratingMinimumFilterApply", "ratingMinimumFilterClear");
 
-function initializeFilterPanelEventHandlers() {
-    $(document).on('click', '.panel-heading span.clickable', function (e) {
-        var $this = $(this);
-        if (!$this.hasClass('panel-collapsed')) {
-            $this.parents('.panel').find('.panel-body').slideUp();
-            $this.addClass('panel-collapsed');
-            $this.find('i').removeClass('glyphicon-minus').addClass('glyphicon-plus');
-        } else {
-            $this.parents('.panel').find('.panel-body').slideDown();
-            $this.removeClass('panel-collapsed');
-            $this.find('i').removeClass('glyphicon-plus').addClass('glyphicon-minus');
-        }
-    });
-    $(document).on('click', '.panel div.clickable', function (e) {
-        var $this = $(this);
-        if (!$this.hasClass('panel-collapsed')) {
-            $this.parents('.panel').find('.panel-body').slideUp();
-            $this.addClass('panel-collapsed');
-            $this.find('i').removeClass('glyphicon-minus').addClass('glyphicon-plus');
-        } else {
-            $this.parents('.panel').find('.panel-body').slideDown();
-            $this.removeClass('panel-collapsed');
-            $this.find('i').removeClass('glyphicon-plus').addClass('glyphicon-minus');
-        }
-    });
-}
-
-function initializeActorFilterEventHandlers() {
-    $("#actorFilterApply").click(function () {
-        if ($("#actorText").val().length > 0) {
-            g_advancedFilters[g_ACTOR_FILTER] = true;
-        } else {
-            g_advancedFilters[g_ACTOR_FILTER] = false;
-        }
+    $id("mpaaRatingFilterApply").addEventListener("click", () => {
+        filters.mpaa = selectedMpaaRating() !== null;
         updateFilterVisuals();
         refreshResults();
     });
-    $("#actorText").keyup(function (e) {
-        if (e.keyCode == 13) {
-            $("#actorFilterApply").click();
-        }
-    })
-    $("#actorFilterClear").click(function () {
-        $("#actorText").val("");
-        g_advancedFilters[g_ACTOR_FILTER] = false;
+    $id("mpaaRatingFilterClear").addEventListener("click", () => {
+        filters.mpaa = false;
+        document.querySelectorAll('input[name="mpaaRating"]').forEach((input) => {
+            input.checked = false;
+        });
         updateFilterVisuals();
         refreshResults();
     });
 }
 
-function initMinRatingFilterEventHandlers() {
-    $("#ratingMinimumFilterApply").click(function () {
-        if ($("#ratingMinimum").val().length > 0) {
-            g_advancedFilters[g_MIN_RATING_FILTER] = true;
-        } else {
-            g_advancedFilters[g_MIN_RATING_FILTER] = false;
-        }
+function bindFilter(name, inputId, applyId, clearId) {
+    const input = $id(inputId);
+    $id(applyId).addEventListener("click", () => {
+        filters[name] = input.value.length > 0;
         updateFilterVisuals();
         refreshResults();
     });
-    $("#ratingMinimum").keyup(function (e) {
-        if (e.keyCode == 13) {
-            $("#ratingMinimumFilterApply").click();
+    input.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") {
+            $id(applyId).click();
         }
     });
-    $("#ratingMinimumFilterClear").click(function () {
-        $("#ratingMinimum").val("");
-        g_advancedFilters[g_MIN_RATING_FILTER] = false;
+    $id(clearId).addEventListener("click", () => {
+        input.value = "";
+        filters[name] = false;
         updateFilterVisuals();
         refreshResults();
     });
 }
 
-function initMpaaRatingFilterEventHandlers() {
-    $("#mpaaRatingFilterApply").click(function () {
-        g_advancedFilters[g_MPAA_FILTER] = true;
-        updateFilterVisuals();
-        refreshResults();
-    });
-    $("#mpaaRatingFilterClear").click(function () {
-        g_advancedFilters[g_MPAA_FILTER] = false;
-        updateFilterVisuals();
-        refreshResults();
-    });
+function selectedMpaaRating() {
+    const checked = document.querySelector('input[name="mpaaRating"]:checked');
+    return checked ? checked.value : null;
 }
 
 function refreshResults() {
-    if ($(".activeGenre").length > 0) {
-        getMovies($(".activeGenre")[0].id);
-    } else {
-        if ($("#actorText").val().length > 0) {
-            $.ajax({
-                url: "https://api.themoviedb.org/3/search/person",
-                data: {
-                    api_key: api_key,
-                    query: $("#actorText").val()
-                },
-                success: function (result) {
-                    if (result.results.length > 0) {
-                        $("#actorText").val(result.results[0].name);
-                        ;
-                    } else {
-                        $("#err").html("No results for that actor");
-                    }
-                }
-            });
-        }
+    if (!g_currentSelection) {
+        return;
     }
-}
-
-function getMovies(genre) {
-    compileRequestData(genre);
-}
-
-function getMoviesSpecialList(id) {
-    var url = "https://api.themoviedb.org/3/movie/" + id;
-    var data = {
-        api_key: api_key,
-        region: g_DEFAULT_REGION
-    };
-    $.ajax({
-        url: url,
-        data: data,
-        success: function (response) {
-            // if (initialCall) {
-            //     g_currentMovieList = [];
-            //     getMoreMovies(data, response);
-            // }
-            g_currentMovieList = [];
-            g_currentMovieList = g_currentMovieList.concat(response.results);
-            // if (remaining === 1) {
-            if (g_currentMovieList.length > 0) {
-                $("#err").html("");
-                // Unique for everyone!
-                shuffle(g_currentMovieList);
-                g_currentMovieIndex = 0;
-                loadVideo(g_currentMovieList[g_currentMovieIndex]);
-            } else {
-                $("#err").html("No movies found");
-            }
-            // }
-        }
+    const load = g_currentSelection.type === "list"
+        ? getMoviesSpecialList(g_currentSelection.id)
+        : getMovies(g_currentSelection.id);
+    load.catch((err) => {
+        console.error(err);
+        setError("Couldn't load movies. Try again.");
     });
 }
 
-function getMoviesWithData(data, initialCall, remaining) {
-    $.ajax({
-        url: "https://api.themoviedb.org/3/discover/movie",
-        data: data,
-        success: function (response) {
-            if (initialCall) {
-                g_currentMovieList = [];
-                getMoreMovies(data, response);
-            }
-            g_currentMovieList = g_currentMovieList.concat(response.results);
-            if (remaining === 1) {
-                if (g_currentMovieList.length > 0) {
-                    $("#err").html("");
-                    // Unique for everyone!
-                    shuffle(g_currentMovieList);
-                    console.log(g_currentMovieList);
-                    g_currentMovieIndex = 0;
-                    loadVideo(g_currentMovieList[g_currentMovieIndex]);
-                } else {
-                    $("#err").html("No movies found");
-                }
-            }
-        }
-    });
+// Now Playing / Upcoming / Top Rated / Popular
+async function getMoviesSpecialList(list) {
+    const response = await tmdb(`/movie/${list}`, { region: DEFAULT_REGION });
+    showMovieList(response.results);
 }
 
-function getMoreMovies(data, response) {
-    var pageCounter;
-    if (response.total_pages < g_numpages) {
-        pageCounter = response.total_pages;
-    } else {
-        pageCounter = g_numpages;
-    }
-    while (pageCounter > 1) {
-        data["page"] = pageCounter;
-        getMoviesWithData(data, false, pageCounter--);
-    }
-    getMoviesWithData(data, false, pageCounter);
-}
-
-// Build the data request object based on genre choice and advanced filters
-function compileRequestData(genre) {
-    var data = {
-        api_key: api_key,
+// Build the discover request from the genre and the advanced filters
+async function getMovies(genre) {
+    const params = {
         with_genres: genre,
-        language: "en"
+        language: "en",
+        "vote_average.gte": filters.minRating ? $id("ratingMinimum").value : 4,
     };
-    if (g_advancedFilters[g_MIN_RATING_FILTER]) {
-        data["vote_average.gte"] = $("#ratingMinimum").val();
-    } else {
-        data["vote_average.gte"] = 4;
+    const rating = selectedMpaaRating();
+    if (filters.mpaa && rating) {
+        params.certification_country = "US";
+        params.certification = rating;
     }
-    if(g_advancedFilters[g_MPAA_FILTER]) {
-        data["certification_country"] = "US";
-        $('#advancedFilterMpaaRating .btn.active').each(function() {
-            data["certification"] = this.textContent;
-        });
+    if (filters.actor) {
+        const result = await tmdb("/search/person", { query: $id("actorText").value });
+        if (result.results.length === 0) {
+            setError("No results for that actor");
+            return;
+        }
+        $id("actorText").value = result.results[0].name;
+        params.with_cast = result.results[0].id;
     }
-    if (g_advancedFilters[g_ACTOR_FILTER]) {
-        $.ajax({
-            url: "https://api.themoviedb.org/3/search/person",
-            data: {
-                api_key: api_key,
-                query: $("#actorText").val()
-            },
-            success: function (result) {
-                if (result.results.length > 0) {
-                    $("#actorText").val(result.results[0].name);
-                    data["with_cast"] = result.results[0].id;
-                    getMoviesWithData(data, true);
-                } else {
-                    $("#err").html("No results for that actor");
-                }
-            }
-        });
-    } else {
-        getMoviesWithData(data, true);
+
+    const first = await tmdb("/discover/movie", params);
+    const pages = Math.min(first.total_pages, NUM_PAGES);
+    const rest = [];
+    for (let page = 2; page <= pages; page++) {
+        rest.push(tmdb("/discover/movie", { ...params, page }));
     }
+    const more = await Promise.all(rest);
+    showMovieList(first.results.concat(...more.map((r) => r.results)));
+}
+
+function showMovieList(movies) {
+    if (movies.length === 0) {
+        setError("No movies found");
+        return;
+    }
+    setError("");
+    g_currentMovieList = shuffle(movies.slice()); // Unique for everyone!
+    g_currentMovieIndex = 0;
+    loadVideo(g_currentMovieList[0]);
 }
 
 function loadNextVideo() {
-    g_currentMovieIndex++;
-    if (g_currentMovieIndex > g_currentMovieList.length - 1) {
-        g_currentMovieIndex = 0;
-    }
+    if (g_currentMovieList.length === 0) return;
+    g_currentMovieIndex = (g_currentMovieIndex + 1) % g_currentMovieList.length;
     loadVideo(g_currentMovieList[g_currentMovieIndex]);
 }
 
 function loadPreviousVideo() {
-    g_currentMovieIndex--;
-    if (g_currentMovieIndex < 0) {
-        g_currentMovieIndex = g_currentMovieList.length - 1;
-    }
+    if (g_currentMovieList.length === 0) return;
+    g_currentMovieIndex = (g_currentMovieIndex - 1 + g_currentMovieList.length) % g_currentMovieList.length;
     loadVideo(g_currentMovieList[g_currentMovieIndex]);
 }
 
 function loadVideo(movie) {
     search(movie.title);
-    $("#movieTitle").html(movie.title);
+    $id("movieTitle").textContent = movie.title;
     showMovieInfo(movie);
 }
 
-var monthNames = ["December", "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November"];
+const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
 
-function showMovieInfo(data) {
-    loadPoster(data);
-    // Set movie info
-    $("#movieInfo").html(data.overview);
-    console.log(data.release_date);
-    var date = new Date(data.release_date.substring(0, 4), data.release_date.substring(5, 7), data.release_date.substring(8, 10));
-    console.log(date);
-    // Set release date
-    $("#releaseDate").html("Release Date: " + monthNames[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear());
-    // Set rating
-    $("#rating").html("Rating: " + data.vote_average.toFixed(2) + "/10");
-    $("#canistreamlink").html("<a target=\"_blank\" href=\"https://www.justwatch.com/us/search?q=" + data.title + "\">Can I Stream It?</a>");
+function showMovieInfo(movie) {
+    loadPoster(movie);
+    $id("movieInfo").textContent = movie.overview || "";
+
+    const [year, month, day] = (movie.release_date || "").split("-").map(Number);
+    $id("releaseDate").textContent = year
+        ? `Release Date: ${monthNames[month - 1]} ${day}, ${year}`
+        : "";
+    $id("rating").textContent = typeof movie.vote_average === "number"
+        ? `Rating: ${movie.vote_average.toFixed(2)}/10`
+        : "";
+
+    const link = document.createElement("a");
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.href = "https://www.justwatch.com/us/search?q=" + encodeURIComponent(movie.title);
+    link.textContent = "Can I Stream It?";
+    $id("canistreamlink").replaceChildren(link);
 }
 
-function loadPoster(data) {
-    var base_url = g_configuration.images.secure_base_url;
-    var size = g_configuration.images.poster_sizes[0];
-    $("#poster").html("<img src=\"" + base_url + size + data.poster_path + "\">");
+function loadPoster(movie) {
+    const poster = $id("poster");
+    if (!movie.poster_path || !g_configuration) {
+        poster.replaceChildren();
+        return;
+    }
+    const img = document.createElement("img");
+    img.src = g_configuration.images.secure_base_url + g_configuration.images.poster_sizes[0] + movie.poster_path;
+    img.alt = `${movie.title} poster`;
+    poster.replaceChildren(img);
 }
-
-$(function () {
-    $("#trailerSearch").submit(function () {
-        searchSubmit();
-        return false;
-    });
-});
 
 function searchSubmit() {
-    console.log($("#searchText").val());
-    search($("#searchText").val());
-    getMovieInfo($("#searchText").val());
+    const query = $id("searchText").value;
+    if (!query) return false;
+    search(query);
+    getMovieInfo(query).catch((err) => console.error(err));
     return false;
 }
 
-// Search for a specified string.
+// Search YouTube for the trailer and play the first hit
 function search(q) {
-    var queryAddon = " trailer";
-    if (g_advancedFilters[g_ACTOR_FILTER]) {
-        queryAddon += " " + $("#actorText").val();
+    let queryAddon = " trailer";
+    if (filters.actor) {
+        queryAddon += " " + $id("actorText").value;
     }
-    var request = gapi.client.youtube.search.list({
+    if (!window.gapi || !gapi.client || !gapi.client.youtube) {
+        setError("YouTube search isn't ready yet. Try again in a moment.");
+        return;
+    }
+    gapi.client.youtube.search.list({
         q: q + queryAddon,
-        part: 'snippet',
+        part: "snippet",
         type: "video",
-        maxResults: 1
-    });
-
-    request.execute(function (response) {
-        player.loadVideoById(response.items[0].id.videoId, 1, "default");
-    });
-}
-
-// Request movie data
-function getMovieInfo(query) {
-    $.ajax({
-        url: "https://api.themoviedb.org/3/search/movie",
-        data: {
-            api_key: api_key,
-            query: query
-        },
-        success: function (response) {
-            if (response.results.length > 0) {
-                $("#movieTitle").html(response.results[0].original_title);
-                showMovieInfo(response.results[0])
-            } else {
-                $("#movieTitle").html(query);
-                clearMovieInfo();
-                $("#releaseDate").html("No info found");
-            }
+        maxResults: 1,
+    }).execute((response) => {
+        if (response && response.items && response.items.length > 0 && player) {
+            player.loadVideoById(response.items[0].id.videoId, 1, "default");
         }
     });
 }
 
+// Request movie data for a free-text search
+async function getMovieInfo(query) {
+    const response = await tmdb("/search/movie", { query });
+    if (response.results.length > 0) {
+        $id("movieTitle").textContent = response.results[0].original_title;
+        showMovieInfo(response.results[0]);
+    } else {
+        $id("movieTitle").textContent = query;
+        clearMovieInfo();
+        $id("releaseDate").textContent = "No info found";
+    }
+}
+
 function clearMovieInfo() {
-    $("#releaseDate").html("");
-    $("#movieInfo").html("");
-    $("#rating").html("");
-    $("#canistreamlink").html("");
-    $("#poster").html("");
-    $("#err").html("");
+    ["releaseDate", "movieInfo", "rating", "canistreamlink", "poster", "err"].forEach((id) => {
+        $id(id).replaceChildren();
+    });
+}
+
+function setActive(button, active) {
+    button.classList.toggle("btn-success", active);
+    button.classList.toggle("btn-outline-primary", !active);
 }
 
 function updateFilterVisuals() {
-    if (g_advancedFilters[g_ACTOR_FILTER]) {
-        $("#advancedFilterActor").addClass("has-success");
-        $("#actorFilterApply").removeClass("btn-default").addClass("btn-success");
-    } else {
-        $("#advancedFilterActor").removeClass("has-success");
-        $("#actorFilterApply").addClass("btn-default").removeClass("btn-success");
-    }
-    if (g_advancedFilters[g_MIN_RATING_FILTER]) {
-        $("#advancedFilterRating").addClass("has-success");
-        $("#ratingMinimumFilterApply").removeClass("btn-default").addClass("btn-success");
-    } else {
-        $("#advancedFilterRating").removeClass("has-success");
-        $("#ratingMinimumFilterApply").addClass("btn-default").removeClass("btn-success");
-    }
-    if (g_advancedFilters[g_MPAA_FILTER]) {
-        $('#advancedFilterMpaaRating .btn').removeClass("btn-success").addClass("btn-default");
-        $('#advancedFilterMpaaRating .btn.active').each(function() {
-            $(this).removeClass("btn-default").addClass("btn-success");
-        });
-    } else {
-        $('#advancedFilterMpaaRating .btn').removeClass("btn-success").removeClass('active').addClass("btn-default");
-    }
+    setActive($id("actorFilterApply"), filters.actor);
+    setActive($id("ratingMinimumFilterApply"), filters.minRating);
+    setActive($id("mpaaRatingFilterApply"), filters.mpaa);
 }
 
-// Knuth shuffle
+// Fisher-Yates shuffle
 function shuffle(array) {
-    var currentIndex = array.length, temporaryValue, randomIndex;
-
-    // While there remain elements to shuffle...
-    while (0 !== currentIndex) {
-        // Pick a remaining element...
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex -= 1;
-
-        // And swap it with the current element.
-        temporaryValue = array[currentIndex];
-        array[currentIndex] = array[randomIndex];
-        array[randomIndex] = temporaryValue;
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
 }
 
-var api_key = "a5d4199b71fd3989796a8f11a0176c28";
-$( document ).ready(function() {
-   initialSetup();
+document.addEventListener("DOMContentLoaded", () => {
+    $id("trailerSearch").addEventListener("submit", (e) => {
+        e.preventDefault();
+        searchSubmit();
+    });
+    initialSetup();
 });
-
