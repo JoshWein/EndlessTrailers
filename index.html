@@ -11,7 +11,8 @@
 		// Apply saved theater mode before first paint so a dark room doesn't get a white flash
 		try { if (localStorage.getItem("endlessTrailers.theater") === "1") document.documentElement.classList.add("theater"); } catch (e) {}
 	</script>
-	<link href="css/style.css" rel="stylesheet">
+	<!-- Bump ?v= on every release so phones don't keep stale CSS/JS from cache -->
+	<link href="css/style.css?v=7" rel="stylesheet">
 </head>
 <body>
 	<header class="topbar">
@@ -30,7 +31,7 @@
 				<div class="screen-idle" id="screenIdle">
 					<p class="idle-kicker">Now showing</p>
 					<p class="idle-title">Trailers, back to back</p>
-					<p class="idle-text">Pick any filters, then press <strong>Start</strong>. Trailers keep playing until you press <strong>Stop</strong>.</p>
+					<p class="idle-text">Pick any filters, then press <strong>Start</strong>.</p>
 				</div>
 			</div>
 
@@ -64,10 +65,14 @@
 				<div class="movie-body">
 					<h1 class="movie-title" id="movieTitle"></h1>
 					<p class="movie-meta">
+						<span class="mpaa" id="mpaa"></span>
 						<span id="releaseDate"></span>
+						<span id="runtime"></span>
 						<span id="rating"></span>
 					</p>
+					<p class="movie-genres" id="movieGenres"></p>
 					<p class="movie-overview" id="movieInfo"></p>
+					<p class="movie-cast" id="movieCast"></p>
 					<p class="movie-links" id="canistreamlink"></p>
 				</div>
 			</article>
@@ -142,12 +147,13 @@
 		Movie data from <a href="https://www.themoviedb.org/">The Movie DB</a>. Made by <a href="https://www.joshwein.xyz">Josh Wein</a>.
 	</footer>
 
-	<script src="js/ytapi.js"></script>
-	<script src="js/scripts.js"></script>
-	<script src="https://apis.google.com/js/client.js"></script>
-	<script src="https://www.youtube.com/iframe_api"></script>
-	<script src="/__/firebase/7.15.0/firebase-app.js"></script>
-	<script src="/__/firebase/7.15.0/firebase-remote-config.js"></script>
-	<script src="/__/firebase/init.js"></script>
+	<script src="js/ytapi.js?v=7"></script>
+	<script src="js/scripts.js?v=7"></script>
+	<!-- YouTube and Google scripts load async so a slow phone network can't hold up the buttons -->
+	<script async src="https://apis.google.com/js/client.js?onload=onGapiLoad"></script>
+	<script async src="https://www.youtube.com/iframe_api"></script>
+	<script defer src="/__/firebase/7.15.0/firebase-app.js"></script>
+	<script defer src="/__/firebase/7.15.0/firebase-remote-config.js"></script>
+	<script defer src="/__/firebase/init.js"></script>
 </body>
 </html>

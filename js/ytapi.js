@@ -7,10 +7,28 @@ let player = null;
 let g_playerReady = false;
 let g_pendingVideoId = null;
 
+let g_youtubeKey = null;
+let g_gapiLoaded = false;
+
+// The key (from Remote Config) and the async gapi script can arrive in either order.
 function initYoutube(apiKey) {
-    if (g_youtubeSearchReady || !apiKey || apiKey === "not_set" || !window.gapi) {
+    if (apiKey && apiKey !== "not_set") {
+        g_youtubeKey = apiKey;
+    }
+    startYoutubeClient();
+}
+
+function onGapiLoad() {
+    g_gapiLoaded = true;
+    startYoutubeClient();
+}
+
+function startYoutubeClient() {
+    if (g_youtubeSearchReady || !g_youtubeKey || !g_gapiLoaded || !window.gapi) {
         return;
     }
+    const apiKey = g_youtubeKey;
+    g_youtubeKey = null; // start once
     gapi.load("client", () => {
         gapi.client.setApiKey(apiKey);
         gapi.client.load("youtube", "v3", () => {
