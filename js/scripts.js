@@ -490,7 +490,7 @@ async function start() {
 }
 
 function stop(message) {
-    if (state.mode !== "idle" && typeof message !== "string") {
+    if (state.mode === "running" && typeof message !== "string") {
         track("trailers_stop", { trailers_watched: state.watched || 0 });
     }
     state.run++;
@@ -578,7 +578,7 @@ function onTrailerPlaying() {
     if (!state.playing) {
         const movie = state.queue[state.index];
         markSeen(movie);
-        state.watched = (state.watched || 0) + 1;
+        if (state.mode === "running") state.watched = (state.watched || 0) + 1;
         track("trailer_play", {
             movie_title: movie && movie.title,
             movie_id: movie && movie.id,
