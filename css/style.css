@@ -491,7 +491,9 @@ body {
     transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-body.theater {
+html.theater { color-scheme: dark; }
+
+.theater body {
     --shadow: 4px 4px 0 rgba(241, 233, 216, 0.18);
     background-color: #0b0907;
     background-image: none;
@@ -515,9 +517,11 @@ body.theater {
     padding-top: 20px;
 }
 
-/* As wide as fits while the whole 16:9 picture plus the buttons stays on screen */
+/* Never smaller than the normal player; bigger when the screen is tall enough
+   to keep the whole 16:9 picture and the buttons in view */
 .theater .stage {
-    width: min(100%, max(320px, calc((100vh - 230px) * 16 / 9)));
+    width: min(100%, max(900px, calc((100vh - 240px) * 16 / 9)));
+    width: min(100%, max(900px, calc((100dvh - 240px) * 16 / 9)));
     margin: 0 auto;
 }
 
@@ -550,11 +554,15 @@ body.theater {
     border-color: rgba(241, 233, 216, 0.2);
 }
 .theater .movie-meta { color: #b3a894; }
+/* the poster red is too dark to read on black */
+.theater .movie a,
+.theater .error { color: #ff7a6e; }
+.theater .movie a:hover { color: #ffa59c; }
 .theater .movie-poster img { border-color: rgba(241, 233, 216, 0.2); }
 
 @media (max-width: 599px) {
     /* Edge-to-edge picture on phones */
-    .theater .layout { padding-left: 0; padding-right: 0; }
+    .theater .layout { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
     .theater .screen { border-width: 0; box-shadow: none; }
     .theater .transport,
     .theater .status-row,

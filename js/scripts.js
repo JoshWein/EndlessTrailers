@@ -488,9 +488,8 @@ async function searchSubmit() {
 const THEATER_KEY = "endlessTrailers.theater";
 
 function setTheater(on) {
-    document.body.classList.toggle("theater", on);
+    document.documentElement.classList.toggle("theater", on);
     $id("theaterBtn").setAttribute("aria-pressed", String(on));
-    $id("theaterLabel").textContent = on ? "Lights up" : "Theater mode";
     try {
         localStorage.setItem(THEATER_KEY, on ? "1" : "0");
     } catch (err) {
@@ -498,18 +497,14 @@ function setTheater(on) {
     }
 }
 
-function restoreTheater() {
-    let on = false;
-    try {
-        on = localStorage.getItem(THEATER_KEY) === "1";
-    } catch (err) {
-        on = false;
-    }
-    setTheater(on);
+function isTheater() {
+    return document.documentElement.classList.contains("theater");
 }
 
+// Only text boxes swallow the shortcut; chips, radios and the slider don't
 function isTyping(target) {
-    return target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+    return Boolean(target && target.closest &&
+        target.closest('input[type="text"], input[type="search"], textarea, select, [contenteditable="true"]'));
 }
 
 /* ---------- Helpers ---------- */
@@ -548,18 +543,18 @@ document.addEventListener("DOMContentLoaded", () => {
         step(1);
     });
     $id("resetBtn").addEventListener("click", resetFilters);
-    $id("theaterBtn").addEventListener("click", () => {
-        setTheater(!document.body.classList.contains("theater"));
-    });
-    // T toggles theater mode, Esc leaves it
+    $id("theaterBtn").addEventListener("click", () => setTheater(!isTheater()));
+    // T toggles theater mode, Esc leaves it. (Keys pressed while the video itself
+    // has focus go to YouTube, so the button stays visible as the way out.)
     document.addEventListener("keydown", (e) => {
-        if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
-        if (e.key === "t" || e.key === "T") {
-            setTheater(!document.body.classList.contains("theater"));
-        } else if (e.key === "Escape" && document.body.classList.contains("theater")) {
+        if (e.repeat || e.isComposing || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key === "Escape" && isTheater()) {
             setTheater(false);
+        } else if ((e.key === "t" || e.key === "T") && !isTyping(e.target)) {
+            setTheater(!isTheater());
         }
     });
-    restoreTheater();
+    // The class itself was set by the inline script in <head>, before first paint
+    $id("theaterBtn").setAttribute("aria-pressed", String(isTheater()));
     initialSetup();
 });
