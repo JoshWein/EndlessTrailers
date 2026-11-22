@@ -7,6 +7,9 @@ const FALLBACK_TMDB_KEY = "a5d4199b71fd3989796a8f11a0176c28";
 const REGION = "US";
 const NUM_PAGES = 5;
 const STORAGE_KEY = "endlessTrailers.filters";
+const SEEN_KEY = "endlessTrailers.seen";
+const SEEN_LIMIT = 3000;
+const MAX_PAGES_SKIPPING_SEEN = 15;
 
 let remoteConfig = null;
 let g_configuration = null;
@@ -62,16 +65,25 @@ async function initialSetup() {
     }
     initYoutube(remoteConfig ? remoteConfig.getString("yt_api_key") : "");
 
+    const providers = tmdb("/watch/providers/movie", { watch_region: REGION, language: "en-US" })
+        .then(({ results }) => insertProviders(results))
+        .catch((err) => {
+            console.error(err);
+            $id("providerChips").replaceChildren(mutedText("Streaming services unavailable"));
+        });
     try {
         g_configuration = await tmdb("/configuration");
         const { genres } = await tmdb("/genre/movie/list");
         insertGenres(genres);
     } catch (err) {
         console.error(err);
-        $id("genreChips").innerHTML = '<span class="muted">Genres unavailable</span>';
+        $id("genreChips").replaceChildren(mutedText("Genres unavailable"));
+        $id("excludeChips").replaceChildren(mutedText("Genres unavailable"));
         setError("Couldn't reach The Movie DB. Try reloading.");
     }
+    await providers;
     restoreFilters();
+    updateSeenCount();
     updateFilterSummary();
     $id("startBtn").disabled = false;
     setStatus("Ready. Press Start.");
@@ -79,23 +91,38 @@ async function initialSetup() {
 
 const g_genreNames = {};
 
+function mutedText(text) {
+    const span = document.createElement("span");
+    span.className = "muted";
+    span.textContent = text;
+    return span;
+}
+
+function chip(name, value, label) {
+    const el = document.createElement("label");
+    el.className = "chip";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = name;
+    input.value = value;
+    input.dataset.name = label;
+    const span = document.createElement("span");
+    span.textContent = label;
+    el.append(input, span);
+    return el;
+}
+
 function insertGenres(genres) {
     genres.forEach((genre) => { g_genreNames[genre.id] = genre.name; });
-    const box = $id("genreChips");
-    box.replaceChildren();
-    genres.forEach((genre) => {
-        const label = document.createElement("label");
-        label.className = "chip";
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.name = "genre";
-        input.value = genre.id;
-        input.dataset.name = genre.name;
-        const span = document.createElement("span");
-        span.textContent = genre.name;
-        label.append(input, span);
-        box.appendChild(label);
-    });
+    $id("genreChips").replaceChildren(...genres.map((g) => chip("genre", g.id, g.name)));
+    $id("excludeChips").replaceChildren(...genres.map((g) => chip("genreOut", g.id, g.name)));
+}
+
+// The dozen biggest US services, in TMDB's own US display order
+function insertProviders(providers) {
+    const rank = (p) => (p.display_priorities && p.display_priorities[REGION]) ?? p.display_priority ?? 999;
+    const top = providers.slice().sort((a, b) => rank(a) - rank(b)).slice(0, 12);
+    $id("providerChips").replaceChildren(...top.map((p) => chip("provider", p.provider_id, p.provider_name)));
 }
 
 /* ---------- Filters ---------- */
@@ -110,12 +137,42 @@ function readFilters() {
         genreMode: (checked("genreMode")[0] || {}).value || "any",
         mpaa: checked("mpaa").map((i) => i.value),
         minRating: Number($id("ratingMinimum").value),
-        actors: $id("actorText").value.split(",").map((s) => s.trim()).filter(Boolean),
+        actors: splitNames($id("actorText").value),
+        yearFrom: $id("yearFrom").value,
+        yearTo: $id("yearTo").value,
+        providers: checked("provider").map((i) => i.value),
+        providerNames: checked("provider").map((i) => i.dataset.name),
+        excluded: checked("genreOut").map((i) => i.value),
+        excludedNames: checked("genreOut").map((i) => i.dataset.name),
+        runtime: $id("runtimeFilter").value,
+        language: $id("language").value,
+        languageName: $id("language").value ? $id("language").selectedOptions[0].textContent : "",
+        directors: splitNames($id("directorText").value),
+        skipSeen: $id("skipSeen").checked,
     };
 }
 
+function splitNames(text) {
+    return text.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 function filterKey(f) {
-    return JSON.stringify([f.list, f.genres, f.genreMode, f.mpaa, f.minRating, f.actors]);
+    return JSON.stringify([f.list, f.genres, f.genreMode, f.mpaa, f.minRating, f.actors, f.yearFrom, f.yearTo,
+        f.providers, f.excluded, f.runtime, f.language, f.directors, f.skipSeen]);
+}
+
+// How many of the tucked-away filters are on, shown next to "More filters"
+function moreFilterCount(f) {
+    return [f.excluded.length > 0, f.runtime, f.language, f.directors.length > 0, f.skipSeen].filter(Boolean).length;
+}
+
+const RUNTIME_NAMES = { lt90: "under 90 min", lt120: "under 2 hrs", gt120: "2 hrs+" };
+
+function yearRange(f) {
+    let from = f.yearFrom;
+    let to = f.yearTo;
+    if (from && to && Number(from) > Number(to)) [from, to] = [to, from];
+    return { from, to };
 }
 
 const LIST_NAMES = {
@@ -137,6 +194,18 @@ function describeFilters(f) {
     if (f.mpaa.length) parts.push(f.mpaa.join("/"));
     if (f.minRating > 0) parts.push(`${f.minRating}+`);
     if (f.actors.length) parts.push(f.actors.join(", "));
+    const { from, to } = yearRange(f);
+    if (from && to) parts.push(from === to ? from : `${from}–${to}`);
+    else if (from) parts.push(`${from}+`);
+    else if (to) parts.push(`up to ${to}`);
+    if (f.providerNames.length) {
+        parts.push(f.providerNames.length <= 2 ? `on ${f.providerNames.join(" / ")}` : `on ${f.providerNames.length} services`);
+    }
+    if (f.excludedNames.length) parts.push(`no ${f.excludedNames.join(" / ")}`);
+    if (f.runtime) parts.push(RUNTIME_NAMES[f.runtime]);
+    if (f.languageName) parts.push(f.languageName);
+    if (f.directors.length) parts.push(`dir. ${f.directors.join(", ")}`);
+    if (f.skipSeen) parts.push("unseen only");
     return parts.join(", ");
 }
 
@@ -144,6 +213,12 @@ function updateFilterSummary() {
     const f = readFilters();
     $id("filterSummary").textContent = describeFilters(f);
     $id("ratingValue").textContent = f.minRating > 0 ? `${f.minRating}+` : "Any";
+    const more = moreFilterCount(f);
+    $id("moreCount").textContent = more ? `(${more} on)` : "";
+    // Light up the decade chip that matches the From/To years
+    document.querySelectorAll("#decadeChips .chip-btn").forEach((btn) => {
+        btn.setAttribute("aria-pressed", String(btn.dataset.from === f.yearFrom && btn.dataset.to === f.yearTo));
+    });
     updateButtons();
 }
 
@@ -174,8 +249,19 @@ function restoreFilters() {
     if (saved.genreMode) setChecked("genreMode", [saved.genreMode]);
     setChecked("genre", saved.genres || []);
     setChecked("mpaa", saved.mpaa || []);
+    setChecked("provider", saved.providers || []);
+    setChecked("genreOut", saved.excluded || []);
     $id("ratingMinimum").value = saved.minRating || 0;
     $id("actorText").value = (saved.actors || []).join(", ");
+    $id("yearFrom").value = saved.yearFrom || "";
+    $id("yearTo").value = saved.yearTo || "";
+    $id("runtimeFilter").value = saved.runtime || "";
+    $id("language").value = saved.language || "";
+    $id("directorText").value = (saved.directors || []).join(", ");
+    $id("skipSeen").checked = Boolean(saved.skipSeen);
+    if (moreFilterCount(readFilters()) > 0) {
+        $id("moreFilters").open = true;
+    }
 }
 
 function resetFilters() {
@@ -236,14 +322,36 @@ async function buildDiscoverParams(f) {
         }
     }
     if (f.actors.length) {
-        const people = await Promise.all(f.actors.map((name) => tmdb("/search/person", { query: name })));
-        const missing = f.actors.filter((name, i) => people[i].results.length === 0);
-        if (missing.length) {
-            throw new UserError(`No actor found for "${missing.join('", "')}".`);
-        }
-        params.with_cast = people.map((p) => p.results[0].id).join(",");
+        params.with_cast = (await findPeople(f.actors, "actor")).join(",");
     }
+    if (f.directors.length) {
+        params.with_crew = (await findPeople(f.directors, "director")).join("|");
+    }
+    const { from, to } = yearRange(f);
+    if (from) params["primary_release_date.gte"] = `${from}-01-01`;
+    if (to) params["primary_release_date.lte"] = `${to}-12-31`;
+    if (f.providers.length) {
+        params.watch_region = REGION;
+        params.with_watch_providers = f.providers.join("|");
+        params.with_watch_monetization_types = "flatrate|free|ads";
+    }
+    if (f.excluded.length) {
+        params.without_genres = f.excluded.join(",");
+    }
+    if (f.runtime === "lt90") params["with_runtime.lte"] = 89;
+    if (f.runtime === "lt120") params["with_runtime.lte"] = 119;
+    if (f.runtime === "gt120") params["with_runtime.gte"] = 120;
+    if (f.language) params.with_original_language = f.language;
     return params;
+}
+
+async function findPeople(names, role) {
+    const people = await Promise.all(names.map((name) => tmdb("/search/person", { query: name })));
+    const missing = names.filter((name, i) => people[i].results.length === 0);
+    if (missing.length) {
+        throw new UserError(`No ${role} found for "${missing.join('", "')}".`);
+    }
+    return people.map((p) => p.results[0].id);
 }
 
 class UserError extends Error {}
@@ -252,14 +360,59 @@ const MPAA_ORDER = ["G", "PG", "PG-13", "R", "NC-17"];
 
 async function discoverMovies(f) {
     const params = await buildDiscoverParams(f);
+    const keep = f.skipSeen ? ((m) => !seenIds().has(m.id)) : (() => true);
     const first = await tmdb("/discover/movie", params);
-    const pages = Math.min(first.total_pages, NUM_PAGES);
-    const rest = [];
-    for (let page = 2; page <= pages; page++) {
-        rest.push(tmdb("/discover/movie", { ...params, page }));
+    const totalPages = first.total_pages;
+    let movies = first.results.filter(keep);
+    let page = 2;
+    // Five pages normally; when skipping seen trailers keep going until there are enough new ones
+    const limit = f.skipSeen ? MAX_PAGES_SKIPPING_SEEN : NUM_PAGES;
+    while (page <= Math.min(totalPages, limit) && (page <= NUM_PAGES || movies.length < 40)) {
+        const batch = [];
+        for (let i = 0; i < 5 && page <= Math.min(totalPages, limit); i++, page++) {
+            batch.push(tmdb("/discover/movie", { ...params, page }));
+        }
+        const results = await Promise.all(batch);
+        movies = movies.concat(...results.map((r) => r.results.filter(keep)));
     }
-    const more = await Promise.all(rest);
-    return first.results.concat(...more.map((r) => r.results));
+    return movies;
+}
+
+/* ---------- Watched history ---------- */
+
+function seenIds() {
+    try {
+        return new Set(JSON.parse(localStorage.getItem(SEEN_KEY)) || []);
+    } catch (err) {
+        return new Set();
+    }
+}
+
+function markSeen(movie) {
+    if (!movie || !movie.id) return;
+    const ids = [...seenIds()].filter((id) => id !== movie.id);
+    ids.push(movie.id);
+    try {
+        localStorage.setItem(SEEN_KEY, JSON.stringify(ids.slice(-SEEN_LIMIT)));
+    } catch (err) {
+        // history just won't be remembered
+    }
+    updateSeenCount();
+}
+
+function updateSeenCount() {
+    const n = seenIds().size;
+    $id("seenCount").textContent = `${n} watched`;
+    $id("clearSeenBtn").hidden = n === 0;
+}
+
+function clearSeen() {
+    try {
+        localStorage.removeItem(SEEN_KEY);
+    } catch (err) {
+        // nothing to clear
+    }
+    updateSeenCount();
 }
 
 /* ---------- Start / Stop ---------- */
@@ -280,7 +433,10 @@ async function start() {
         const movies = await discoverMovies(f);
         if (run !== state.run) return;
         if (movies.length === 0) {
-            stop("No movies match those filters. Try loosening them.");
+            $id("filterPanel").open = true; // phones folded it away on Start; they'll need it now
+            stop(f.skipSeen
+                ? "You've watched every trailer for these filters. Loosen them, or turn off \"Skip trailers I've already watched\"."
+                : "No movies match those filters. Try loosening them.");
             return;
         }
         state.queue = shuffle(movies);
@@ -291,6 +447,7 @@ async function start() {
     } catch (err) {
         if (run !== state.run) return;
         console.error(err);
+        if (err instanceof UserError) $id("filterPanel").open = true;
         stop(err instanceof UserError ? err.message : "Couldn't load movies. Try again.");
     }
 }
@@ -361,6 +518,7 @@ async function playCurrent() {
         return;
     }
     $id("screenIdle").hidden = true;
+    state.videoId = videoId;
     playVideoId(videoId);
     // Phones can block autoplay; if nothing starts, say how to get it going
     setTimeout(() => {
@@ -372,6 +530,14 @@ async function playCurrent() {
 
 // Called by the player once a trailer is really playing.
 function onTrailerPlaying() {
+    // Ignore a late PLAYING event from the previous trailer while the next one loads
+    const data = player && player.getVideoData ? player.getVideoData() : null;
+    if (data && data.video_id && data.video_id !== state.videoId) {
+        return;
+    }
+    if (!state.playing) {
+        markSeen(state.queue[state.index]);
+    }
     state.playing = true;
 }
 
@@ -600,7 +766,15 @@ document.addEventListener("DOMContentLoaded", () => {
         start();
     });
     $id("filterForm").addEventListener("input", updateFilterSummary);
-    $id("filterForm").addEventListener("change", () => {
+    $id("filterForm").addEventListener("change", (e) => {
+        // A genre can't be both wanted and hidden: checking one side clears the other
+        const t = e.target;
+        if (t && t.checked && (t.name === "genre" || t.name === "genreOut")) {
+            const other = t.name === "genre" ? "genreOut" : "genre";
+            document.querySelectorAll(`input[name="${other}"][value="${t.value}"]`).forEach((i) => {
+                i.checked = false;
+            });
+        }
         updateFilterSummary();
         saveFilters();
     });
@@ -615,6 +789,16 @@ document.addEventListener("DOMContentLoaded", () => {
         step(1);
     });
     $id("resetBtn").addEventListener("click", resetFilters);
+    $id("clearSeenBtn").addEventListener("click", clearSeen);
+    // Decade shortcuts fill in From/To (tap the lit one again to clear)
+    $id("decadeChips").addEventListener("click", (e) => {
+        const btn = e.target.closest(".chip-btn");
+        if (!btn) return;
+        const on = btn.getAttribute("aria-pressed") === "true";
+        $id("yearFrom").value = on ? "" : btn.dataset.from;
+        $id("yearTo").value = on ? "" : btn.dataset.to;
+        $id("yearFrom").dispatchEvent(new Event("change", { bubbles: true }));
+    });
     $id("theaterBtn").addEventListener("click", () => setTheater(!isTheater()));
     // T toggles theater mode, Esc leaves it. (Keys pressed while the video itself
     // has focus go to YouTube, so the button stays visible as the way out.)
