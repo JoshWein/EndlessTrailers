@@ -228,20 +228,38 @@ input::placeholder { color: #8a8076; }
 
 .transport {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 54px 54px;
+    /* Phones: Start and Stop on top, skip buttons and Theater underneath */
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 12px;
     margin-top: 20px;
 }
+.transport .btn-start,
+.transport .btn-stop { grid-column: span 3; }
+.transport .btn-icon,
+.transport .btn-theater { grid-column: span 2; }
 .transport .btn { min-height: 54px; padding: 0 10px; font-size: 1.35rem; }
 .transport { padding-right: 4px; } /* keep the hard shadow on screen */
 @media (max-width: 399px) {
     .transport .btn { font-size: 1.15rem; gap: 6px; }
 }
-.transport .btn-icon { width: 54px; }
+.transport .btn-icon { width: auto; }
+.transport .btn-theater { font-size: 1.15rem; }
 
 @media (min-width: 600px) {
-    .transport { grid-template-columns: 170px 170px 54px 54px; justify-content: start; }
+    .transport { grid-template-columns: 170px 170px 54px 54px auto; justify-content: start; }
+    .transport .btn { grid-column: auto; }
+    .transport .btn-theater { padding: 0 18px; }
 }
+
+/* On = lit up red, like the Start button */
+.btn-theater[aria-pressed="true"],
+.theater .btn-theater[aria-pressed="true"] {
+    background: var(--red);
+    border-color: var(--red);
+    color: var(--paper);
+}
+.btn-theater[aria-pressed="true"]:not(:disabled):hover,
+.theater .btn-theater[aria-pressed="true"]:not(:disabled):hover { background: var(--red-dark); }
 
 .status-row {
     display: flex;
@@ -251,24 +269,6 @@ input::placeholder { color: #8a8076; }
     gap: 8px 16px;
     margin-top: 14px;
 }
-
-.theater-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 36px;
-    padding: 0 10px;
-    border: 2px solid var(--ink);
-    background: transparent;
-    font-family: var(--mono);
-    font-weight: 600;
-    font-size: 0.78rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    cursor: pointer;
-}
-.theater-toggle svg { width: 16px; height: 16px; fill: currentColor; }
-.theater-toggle:hover { background: var(--ink); color: var(--paper); }
 
 .status {
     margin: 0 2px;
@@ -541,13 +541,6 @@ html.theater { color-scheme: dark; }
 .theater .btn-start { border-color: var(--red); }
 
 .theater .status { color: #b3a894; }
-
-.theater .theater-toggle {
-    border-color: var(--red);
-    background: var(--red);
-    color: var(--paper);
-}
-.theater .theater-toggle:hover { background: var(--red-dark); }
 
 .theater .movie {
     background: #17120f;
