@@ -125,6 +125,39 @@ function insertProviders(providers) {
     $id("providerChips").replaceChildren(...top.map((p) => chip("provider", p.provider_id, p.provider_name)));
 }
 
+/* ---------- Analytics ---------- */
+
+// Sends a GA4 event if the tag loaded (ad blockers often stop it; that's fine).
+// GA4 drops parameter values longer than 100 characters, so trim them.
+function track(name, params = {}) {
+    if (typeof window.gtag !== "function") return;
+    const clean = {};
+    for (const [key, value] of Object.entries(params)) {
+        if (value === undefined || value === null || value === "") continue;
+        clean[key] = typeof value === "string" ? value.slice(0, 100) : value;
+    }
+    window.gtag("event", name, clean);
+}
+
+function filterParams(f) {
+    const { from, to } = yearRange(f);
+    return {
+        list: f.list,
+        genres: f.genreNames.join(", ") || "any",
+        genre_mode: f.genres.length > 1 ? f.genreMode : undefined,
+        mpaa: f.mpaa.join(", ") || "any",
+        min_rating: f.minRating,
+        years: from || to ? `${from || "any"}-${to || "now"}` : "any",
+        streaming: f.providerNames.join(", ") || "any",
+        hidden_genres: f.excludedNames.join(", ") || undefined,
+        length: f.runtime ? RUNTIME_NAMES[f.runtime] : undefined,
+        original_language: f.languageName || undefined,
+        actors: f.actors.join(", ") || undefined,
+        directors: f.directors.join(", ") || undefined,
+        skip_seen: f.skipSeen ? "yes" : "no",
+    };
+}
+
 /* ---------- Filters ---------- */
 
 function readFilters() {
@@ -426,6 +459,8 @@ async function start() {
     state.queue = [];
     setError("");
     setStatus(`Finding trailers: ${describeFilters(f)}…`);
+    state.watched = 0;
+    track("trailers_start", filterParams(f));
     updateButtons();
     collapseFiltersOnPhone();
 
@@ -433,12 +468,14 @@ async function start() {
         const movies = await discoverMovies(f);
         if (run !== state.run) return;
         if (movies.length === 0) {
+            track("trailers_no_results", filterParams(f));
             $id("filterPanel").open = true; // phones folded it away on Start; they'll need it now
             stop(f.skipSeen
                 ? "You've watched every trailer for these filters. Loosen them, or turn off \"Skip trailers I've already watched\"."
                 : "No movies match those filters. Try loosening them.");
             return;
         }
+        track("trailers_found", { movie_count: movies.length });
         state.queue = shuffle(movies);
         state.index = 0;
         state.misses = 0;
@@ -453,6 +490,9 @@ async function start() {
 }
 
 function stop(message) {
+    if (state.mode !== "idle" && typeof message !== "string") {
+        track("trailers_stop", { trailers_watched: state.watched || 0 });
+    }
     state.run++;
     state.mode = "idle";
     state.appliedKey = null;
@@ -536,13 +576,24 @@ function onTrailerPlaying() {
         return;
     }
     if (!state.playing) {
-        markSeen(state.queue[state.index]);
+        const movie = state.queue[state.index];
+        markSeen(movie);
+        state.watched = (state.watched || 0) + 1;
+        track("trailer_play", {
+            movie_title: movie && movie.title,
+            movie_id: movie && movie.id,
+            source: state.mode === "single" ? "search" : "filters",
+            trailer_number: state.mode === "running" ? state.watched : undefined,
+            theater: isTheater() ? "on" : "off",
+        });
     }
     state.playing = true;
 }
 
 // Called by the player when a trailer finishes.
 function onTrailerEnded() {
+    const movie = state.queue[state.index];
+    track("trailer_complete", { movie_title: movie && movie.title, movie_id: movie && movie.id });
     state.misses = 0;
     if (state.mode === "running") {
         step(1);
@@ -700,6 +751,7 @@ async function searchSubmit() {
     const run = state.run;
     setError("");
     try {
+        track("search", { search_term: query });
         const response = await tmdb("/search/movie", { query });
         if (run !== state.run) return; // Start or Stop was pressed meanwhile
         if (response.results.length === 0) {
@@ -733,6 +785,12 @@ function setTheater(on) {
     } catch (err) {
         // not remembered, that's fine
     }
+}
+
+function toggleTheater(method) {
+    const on = !isTheater();
+    setTheater(on);
+    track("theater_mode", { state: on ? "on" : "off", method });
 }
 
 function isTheater() {
@@ -781,15 +839,23 @@ document.addEventListener("DOMContentLoaded", () => {
     $id("startBtn").addEventListener("click", start);
     $id("stopBtn").addEventListener("click", () => stop());
     $id("prevBtn").addEventListener("click", () => {
+        track("trailer_skip", { direction: "back", watched_playing: state.playing ? "yes" : "no" });
         state.misses = 0;
         step(-1);
     });
     $id("nextBtn").addEventListener("click", () => {
+        track("trailer_skip", { direction: "next", watched_playing: state.playing ? "yes" : "no" });
         state.misses = 0;
         step(1);
     });
-    $id("resetBtn").addEventListener("click", resetFilters);
-    $id("clearSeenBtn").addEventListener("click", clearSeen);
+    $id("resetBtn").addEventListener("click", () => {
+        track("filters_reset");
+        resetFilters();
+    });
+    $id("clearSeenBtn").addEventListener("click", () => {
+        track("seen_history_cleared");
+        clearSeen();
+    });
     // Decade shortcuts fill in From/To (tap the lit one again to clear)
     $id("decadeChips").addEventListener("click", (e) => {
         const btn = e.target.closest(".chip-btn");
@@ -799,15 +865,15 @@ document.addEventListener("DOMContentLoaded", () => {
         $id("yearTo").value = on ? "" : btn.dataset.to;
         $id("yearFrom").dispatchEvent(new Event("change", { bubbles: true }));
     });
-    $id("theaterBtn").addEventListener("click", () => setTheater(!isTheater()));
+    $id("theaterBtn").addEventListener("click", () => toggleTheater("button"));
     // T toggles theater mode, Esc leaves it. (Keys pressed while the video itself
     // has focus go to YouTube, so the button stays visible as the way out.)
     document.addEventListener("keydown", (e) => {
         if (e.repeat || e.isComposing || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
         if (e.key === "Escape" && isTheater()) {
-            setTheater(false);
+            toggleTheater("escape");
         } else if ((e.key === "t" || e.key === "T") && !isTyping(e.target)) {
-            setTheater(!isTheater());
+            toggleTheater("keyboard");
         }
     });
     // The class itself was set by the inline script in <head>, before first paint
