@@ -3,6 +3,14 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<!-- Google Analytics (GA4) -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-962D7Z7C4Z"></script>
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag(){dataLayer.push(arguments);}
+		gtag("js", new Date());
+		gtag("config", "G-962D7Z7C4Z");
+	</script>
 	<meta name="theme-color" content="#16120f">
 	<meta name="description" content="Pick genres, ratings and actors, press Start, and watch movie trailers back to back.">
 	<title>Endless Trailers</title>
@@ -15,7 +23,7 @@
 		try { if (localStorage.getItem("endlessTrailers.theater") === "1") document.documentElement.classList.add("theater"); } catch (e) {}
 	</script>
 	<!-- Bump ?v= on every release so phones don't keep stale CSS/JS from cache -->
-	<link href="css/style.css?v=8" rel="stylesheet">
+	<link href="css/style.css?v=9" rel="stylesheet">
 </head>
 <body>
 	<header class="topbar">
@@ -466,8 +474,8 @@
 		Movie data from <a href="https://www.themoviedb.org/">The Movie DB</a>. Made by <a href="https://www.joshwein.xyz">Josh Wein</a>.
 	</footer>
 
-	<script src="js/ytapi.js?v=8"></script>
-	<script src="js/scripts.js?v=8"></script>
+	<script src="js/ytapi.js?v=9"></script>
+	<script src="js/scripts.js?v=9"></script>
 	<!-- YouTube and Google scripts load async so a slow phone network can't hold up the buttons -->
 	<script async src="https://apis.google.com/js/client.js?onload=onGapiLoad"></script>
 	<script async src="https://www.youtube.com/iframe_api"></script>
