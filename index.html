@@ -11,7 +11,8 @@
 		// Apply saved theater mode before first paint so a dark room doesn't get a white flash
 		try { if (localStorage.getItem("endlessTrailers.theater") === "1") document.documentElement.classList.add("theater"); } catch (e) {}
 	</script>
-	<link href="css/style.css" rel="stylesheet">
+	<!-- Bump ?v= on every release so phones don't keep stale CSS/JS from cache -->
+	<link href="css/style.css?v=6" rel="stylesheet">
 </head>
 <body>
 	<header class="topbar">
@@ -142,8 +143,8 @@
 		Movie data from <a href="https://www.themoviedb.org/">The Movie DB</a>. Made by <a href="https://www.joshwein.xyz">Josh Wein</a>.
 	</footer>
 
-	<script src="js/ytapi.js"></script>
-	<script src="js/scripts.js"></script>
+	<script src="js/ytapi.js?v=6"></script>
+	<script src="js/scripts.js?v=6"></script>
 	<script src="https://apis.google.com/js/client.js"></script>
 	<script src="https://www.youtube.com/iframe_api"></script>
 	<script src="/__/firebase/7.15.0/firebase-app.js"></script>
