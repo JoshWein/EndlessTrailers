@@ -483,6 +483,35 @@ async function searchSubmit() {
     }
 }
 
+/* ---------- Theater mode ---------- */
+
+const THEATER_KEY = "endlessTrailers.theater";
+
+function setTheater(on) {
+    document.body.classList.toggle("theater", on);
+    $id("theaterBtn").setAttribute("aria-pressed", String(on));
+    $id("theaterLabel").textContent = on ? "Lights up" : "Theater mode";
+    try {
+        localStorage.setItem(THEATER_KEY, on ? "1" : "0");
+    } catch (err) {
+        // not remembered, that's fine
+    }
+}
+
+function restoreTheater() {
+    let on = false;
+    try {
+        on = localStorage.getItem(THEATER_KEY) === "1";
+    } catch (err) {
+        on = false;
+    }
+    setTheater(on);
+}
+
+function isTyping(target) {
+    return target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+}
+
 /* ---------- Helpers ---------- */
 
 // Fisher-Yates shuffle, in place. Unique for everyone!
@@ -519,5 +548,18 @@ document.addEventListener("DOMContentLoaded", () => {
         step(1);
     });
     $id("resetBtn").addEventListener("click", resetFilters);
+    $id("theaterBtn").addEventListener("click", () => {
+        setTheater(!document.body.classList.contains("theater"));
+    });
+    // T toggles theater mode, Esc leaves it
+    document.addEventListener("keydown", (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
+        if (e.key === "t" || e.key === "T") {
+            setTheater(!document.body.classList.contains("theater"));
+        } else if (e.key === "Escape" && document.body.classList.contains("theater")) {
+            setTheater(false);
+        }
+    });
+    restoreTheater();
     initialSetup();
 });
