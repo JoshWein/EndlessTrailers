@@ -77,7 +77,10 @@ async function initialSetup() {
     setStatus("Ready. Press Start.");
 }
 
+const g_genreNames = {};
+
 function insertGenres(genres) {
+    genres.forEach((genre) => { g_genreNames[genre.id] = genre.name; });
     const box = $id("genreChips");
     box.replaceChildren();
     genres.forEach((genre) => {
@@ -348,7 +351,10 @@ async function playCurrent() {
     setStatus(state.mode === "running"
         ? `Trailer ${state.index + 1} of ${state.queue.length}`
         : "Search result");
-    const videoId = await findTrailer(movie);
+    const details = await movieDetails(movie);
+    if (run !== state.run || play !== state.play) return;
+    if (details) showMovieDetails(details);
+    const videoId = await findTrailer(movie, details);
     if (run !== state.run || play !== state.play) return;
     if (!videoId) {
         onTrailerFailed();
@@ -397,20 +403,28 @@ function onTrailerFailed() {
     }
 }
 
-// TMDB lists each movie's YouTube videos, so most trailers need no YouTube search at all.
-async function findTrailer(movie) {
+// One request gets the details shown in the info box and the trailer list.
+async function movieDetails(movie) {
+    if (!movie.id) return null;
     try {
-        if (movie.id) {
-            const { results } = await tmdb(`/movie/${movie.id}/videos`, { language: "en-US" });
-            const youtube = results.filter((v) => v.site === "YouTube");
-            const rank = (v) => (v.type === "Trailer" ? 0 : v.type === "Teaser" ? 2 : 4) + (v.official ? 0 : 1);
-            youtube.sort((a, b) => rank(a) - rank(b));
-            if (youtube.length && rank(youtube[0]) < 4) {
-                return youtube[0].key;
-            }
-        }
+        return await tmdb(`/movie/${movie.id}`, {
+            language: "en-US",
+            append_to_response: "videos,release_dates,credits",
+        });
     } catch (err) {
         console.error(err);
+        return null;
+    }
+}
+
+// TMDB lists each movie's YouTube videos, so most trailers need no YouTube search at all.
+async function findTrailer(movie, details) {
+    const results = (details && details.videos && details.videos.results) || [];
+    const youtube = results.filter((v) => v.site === "YouTube");
+    const rank = (v) => (v.type === "Trailer" ? 0 : v.type === "Teaser" ? 2 : 4) + (v.official ? 0 : 1);
+    youtube.sort((a, b) => rank(a) - rank(b));
+    if (youtube.length && rank(youtube[0]) < 4) {
+        return youtube[0].key;
     }
     const year = (movie.release_date || "").slice(0, 4);
     return youtubeSearch(`${movie.title} ${year} trailer`);
@@ -432,6 +446,13 @@ function showMovieInfo(movie) {
     $id("rating").textContent = movie.vote_count > 0 && typeof movie.vote_average === "number"
         ? `★ ${movie.vote_average.toFixed(1)}/10`
         : "";
+    $id("mpaa").textContent = "";
+    $id("runtime").textContent = "";
+    $id("movieCast").replaceChildren();
+    const genreNames = movie.genres
+        ? movie.genres.map((g) => g.name)
+        : (movie.genre_ids || []).map((id) => g_genreNames[id]).filter(Boolean);
+    showGenres(genreNames);
 
     const link = document.createElement("a");
     link.target = "_blank";
@@ -439,6 +460,56 @@ function showMovieInfo(movie) {
     link.href = "https://www.justwatch.com/us/search?q=" + encodeURIComponent(movie.title);
     link.textContent = "Where to stream it";
     $id("canistreamlink").replaceChildren(link);
+}
+
+// Filled in once the full details arrive: rating, runtime, genres, cast.
+function showMovieDetails(details) {
+    $id("mpaa").textContent = usCertification(details);
+    if (details.runtime > 0) {
+        const h = Math.floor(details.runtime / 60);
+        const m = details.runtime % 60;
+        $id("runtime").textContent = h ? `${h}h ${m}m` : `${m}m`;
+    }
+    if (details.genres && details.genres.length) {
+        showGenres(details.genres.map((g) => g.name));
+    }
+    const cast = ((details.credits && details.credits.cast) || []).slice(0, 4).map((c) => c.name);
+    const box = $id("movieCast");
+    box.replaceChildren();
+    if (cast.length) {
+        const wanted = readFilters().actors.map((a) => a.toLowerCase());
+        const label = document.createElement("span");
+        label.className = "movie-cast-label";
+        label.textContent = "Starring ";
+        box.append(label);
+        cast.forEach((name, i) => {
+            const el = document.createElement(wanted.includes(name.toLowerCase()) ? "strong" : "span");
+            el.textContent = name;
+            box.append(el, i < cast.length - 1 ? ", " : "");
+        });
+    }
+}
+
+// US theatrical rating (G, PG, PG-13, R, NC-17) if TMDB has one.
+function usCertification(details) {
+    const us = ((details.release_dates && details.release_dates.results) || []).find((r) => r.iso_3166_1 === "US");
+    if (!us) return "";
+    const dates = us.release_dates.filter((d) => d.certification);
+    dates.sort((a, b) => (a.type === 3 ? -1 : 0) - (b.type === 3 ? -1 : 0));
+    return dates.length ? dates[0].certification : "";
+}
+
+// Genre tags; the ones you filtered on are filled in.
+function showGenres(names) {
+    const picked = readFilters().genreNames;
+    const box = $id("movieGenres");
+    box.replaceChildren();
+    names.forEach((name) => {
+        const tag = document.createElement("span");
+        tag.className = picked.includes(name) ? "tag is-match" : "tag";
+        tag.textContent = name;
+        box.append(tag);
+    });
 }
 
 function loadPoster(movie) {
