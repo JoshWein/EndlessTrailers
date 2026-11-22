@@ -1,150 +1,141 @@
 <!DOCTYPE html>
-<html>
-<head lang="en">
+<html lang="en">
+<head>
 	<meta charset="utf-8">
-	<meta content="IE=edge" http-equiv="X-UA-Compatible">
-	<meta content="width=device-width, initial-scale=1" name="viewport">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<meta name="theme-color" content="#0e0f13">
+	<meta name="description" content="Pick genres, ratings and actors, press Start, and watch movie trailers back to back.">
 	<title>Endless Trailers</title>
-	<link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
-	<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-	<link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" rel="stylesheet">
 	<link href="css/style.css" rel="stylesheet">
 </head>
 <body>
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-	<script src="js/ytapi.js">
-	</script> 
-	<script src="js/scripts.js">
-	</script> 
-	<script src="https://apis.google.com/js/client.js?onload=init">
-	</script> 
-	<script src="https://www.youtube.com/player_api">
-	</script>
-	<nav class="navbar navbar-expand-lg fixed-top bg-dark" data-bs-theme="dark">
-		<div class="container-fluid">
-		<a class="navbar-brand" href="#">Endless Trailers</a> <button aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler" data-bs-target="#navbarSupportedContent" data-bs-toggle="collapse" type="button"><span class="navbar-toggler-icon"></span></button>
-		<div class="collapse navbar-collapse" id="navbarSupportedContent">
-			<form class="d-flex ms-auto my-2 my-lg-0" id="trailerSearch" name="trailerSearch" role="search">
-				<input class="form-control me-2" id="searchText" placeholder="Movie Title..." type="text"> <button class="btn btn-outline-info" type="submit">Search</button>
-			</form>
-		</div>
-		</div>
-	</nav>
-	<div class="container-fluid justify-content-md-center">
-		<div id="content-wrapper">
-			<div class="row">
-				<div class="col-md-12">
-					<p id="err"></p>
+	<header class="topbar">
+		<a class="brand" href="./">Endless<span>Trailers</span></a>
+		<form class="title-search" id="trailerSearch" role="search">
+			<label class="visually-hidden" for="searchText">Find one movie's trailer</label>
+			<input id="searchText" type="search" placeholder="Find a movie by title" autocomplete="off" enterkeyhint="search">
+			<button class="btn btn-ghost" type="submit">Find</button>
+		</form>
+	</header>
+
+	<main class="layout">
+		<section class="stage" aria-label="Trailer player">
+			<div class="screen">
+				<div id="player"></div>
+				<div class="screen-idle" id="screenIdle">
+					<p class="idle-title">Endless trailers, your way.</p>
+					<p class="idle-text">Pick any filters, then press <strong>Start</strong>. Trailers keep playing until you press <strong>Stop</strong>.</p>
 				</div>
 			</div>
-			<div class="row justify-content-md-center">
-				<h2 class="text-center" id="movieTitle"></h2>
+
+			<div class="transport" role="group" aria-label="Playback">
+				<button class="btn btn-start" id="startBtn" type="button" disabled>
+					<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+					<span id="startLabel">Start</span>
+				</button>
+				<button class="btn btn-stop" id="stopBtn" type="button" disabled>
+					<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+					<span>Stop</span>
+				</button>
+				<button class="btn btn-ghost btn-icon" id="prevBtn" type="button" disabled aria-label="Previous trailer" title="Previous trailer">
+					<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+				</button>
+				<button class="btn btn-ghost btn-icon" id="nextBtn" type="button" disabled aria-label="Next trailer" title="Next trailer">
+					<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6zM16 6h2v12h-2z"/></svg>
+				</button>
 			</div>
-			<div class="row justify-content-md-center">
-				<div class="col-md-4">					
-				
-				<div class="accordion" id="accordionExample">
-						<div class="card">
-							<div class="card-header" id="headingOne">
-								<h2 class="mb-0"><button aria-controls="collapseOne" aria-expanded="true" class="btn btn-link w-100 text-start" data-bs-target="#collapseOne" data-bs-toggle="collapse" type="button">Advanced Filters</button></h2>
-							</div>
-							<div aria-labelledby="headingOne" class="collapse show" data-bs-parent="#accordionExample" id="collapseOne">
-								<div class="card-body">	
-								<div class="input-group"> 
-								<select class="form-select" id="genreList">
-						<option value="" selected>
-							Choose Genre...
-						</option>
-						<option class="extraGenreChoice" value="now_playing">
-							Now Playing
-						</option>
-						<option class="extraGenreChoice" value="upcoming">
-							Upcoming
-						</option>
-						<option class="extraGenreChoice" value="top_rated">
-							Top Rated
-						</option>
-						<option class="extraGenreChoice" value="popular">
-							Popular
-						</option>
-					</select>
-				</div>								
-									<div class="input-group advancedFilter" id="advancedFilterActor">
-										<input class="form-control" id="actorText" placeholder="Actor" type="text">
-										<button class="btn btn-outline-primary" id="actorFilterApply" type="button">Apply</button> <button class="btn btn-outline-primary" id="actorFilterClear" type="button">Clear</button>
-									</div>
-									<div class="input-group advancedFilter" id="advancedFilterRating">
-										<input class="form-control" id="ratingMinimum" max="10.0" min="0.0" placeholder="Minimum Rating" step=".2" type="number">
-										<button class="btn btn-outline-primary" id="ratingMinimumFilterApply" type="button">Apply</button> <button class="btn btn-outline-primary" id="ratingMinimumFilterClear" type="button">Clear</button>
-									</div>
-									<div class="row text-center">
-										<div class="col-12">
-											<h5 id="mpaaRatingLabel">MPAA Rating</h5>
-										</div>
-									</div>
-									<div class="input-group">
-										<div class="btn-group flex-wrap" role="group" aria-labelledby="mpaaRatingLabel" id="advancedFilterMpaaRating"><input class="btn-check" type="radio" name="mpaaRating" id="mpaa-G" value="G" autocomplete="off"><label class="btn btn-outline-primary mpaaBtn" for="mpaa-G">G</label><input class="btn-check" type="radio" name="mpaaRating" id="mpaa-PG" value="PG" autocomplete="off"><label class="btn btn-outline-primary mpaaBtn" for="mpaa-PG">PG</label><input class="btn-check" type="radio" name="mpaaRating" id="mpaa-PG-13" value="PG-13" autocomplete="off"><label class="btn btn-outline-primary mpaaBtn" for="mpaa-PG-13">PG-13</label><input class="btn-check" type="radio" name="mpaaRating" id="mpaa-R" value="R" autocomplete="off"><label class="btn btn-outline-primary mpaaBtn" for="mpaa-R">R</label><input class="btn-check" type="radio" name="mpaaRating" id="mpaa-NC-17" value="NC-17" autocomplete="off"><label class="btn btn-outline-primary mpaaBtn" for="mpaa-NC-17">NC-17</label></div>
-									</div>
-									<div class="input-group mt-2"><button class="btn btn-outline-primary w-50" id="mpaaRatingFilterApply" type="button">Apply</button><button class="btn btn-outline-primary w-50" id="mpaaRatingFilterClear" type="button">Clear</button>
-									</div>
-								</div>
-							</div>
+			<p class="status" id="status" role="status" aria-live="polite">Loading genres…</p>
+			<p class="error" id="err" role="alert"></p>
+
+			<article class="movie" id="movie" hidden>
+				<div class="movie-poster" id="poster"></div>
+				<div class="movie-body">
+					<h1 class="movie-title" id="movieTitle"></h1>
+					<p class="movie-meta">
+						<span id="releaseDate"></span>
+						<span id="rating"></span>
+					</p>
+					<p class="movie-overview" id="movieInfo"></p>
+					<p class="movie-links" id="canistreamlink"></p>
+				</div>
+			</article>
+		</section>
+
+		<aside class="filters" aria-label="Filters">
+			<details id="filterPanel" open>
+				<summary>
+					<span>Filters</span>
+					<span class="filter-summary" id="filterSummary">Popular, any genre</span>
+				</summary>
+
+				<form id="filterForm" class="filter-form">
+					<fieldset>
+						<legend>Show me</legend>
+						<div class="chips" id="listChips">
+							<label class="chip"><input type="radio" name="list" value="popular" checked><span>Popular</span></label>
+							<label class="chip"><input type="radio" name="list" value="top_rated"><span>Top rated</span></label>
+							<label class="chip"><input type="radio" name="list" value="now_playing"><span>In theaters</span></label>
+							<label class="chip"><input type="radio" name="list" value="upcoming"><span>Coming soon</span></label>
 						</div>
-					</div>
-					</div>
-				<div class="col-md-8">
-					<div class="ratio ratio-16x9">
-						<div id="player"></div>
-					</div>
-				</div>
-			</div>
-			<div class="row justify-content-md-center">
-				<div class="col-md-6">
-					<div aria-label="..." class="btn-group videoControlsGroup" role="group">
-						<button class="btn btn-outline-primary videoControls" onclick="loadPreviousVideo()" type="button">Previous</button> <button class="btn btn-outline-primary videoControls" onclick="loadNextVideo()" type="button">Next</button>
-					</div>
-				</div>
-			</div>
-			<div class="col-md-6 justify-content-md-center" id="movie-info-container">
-				<div class="row movieData">
-					<div class="col-4 col-md-2 text-center" id="poster"></div>
-					<div class="col-8 col-md-10">
-						<div class="row">
-							<div class="col-12">
-								<h5 id="releaseDate"></h5>
-							</div>
+					</fieldset>
+
+					<fieldset>
+						<legend>
+							Genres
+							<span class="legend-hint">pick as many as you like</span>
+						</legend>
+						<div class="chips" id="genreChips">
+							<span class="muted">Loading genres…</span>
 						</div>
-						<div class="row">
-							<div class="col-12">
-								<h5 id="rating"></h5>
-							</div>
+						<div class="segmented" role="radiogroup" aria-label="How to combine genres">
+							<label><input type="radio" name="genreMode" value="any" checked><span>Any of these</span></label>
+							<label><input type="radio" name="genreMode" value="all"><span>All of these</span></label>
 						</div>
-						<div class="row">
-							<div class="col-12">
-								<h5 id="canistreamlink"></h5>
-							</div>
+					</fieldset>
+
+					<fieldset>
+						<legend>
+							MPAA rating
+							<span class="legend-hint">any you pick</span>
+						</legend>
+						<div class="chips" id="mpaaChips">
+							<label class="chip"><input type="checkbox" name="mpaa" value="G"><span>G</span></label>
+							<label class="chip"><input type="checkbox" name="mpaa" value="PG"><span>PG</span></label>
+							<label class="chip"><input type="checkbox" name="mpaa" value="PG-13"><span>PG-13</span></label>
+							<label class="chip"><input type="checkbox" name="mpaa" value="R"><span>R</span></label>
+							<label class="chip"><input type="checkbox" name="mpaa" value="NC-17"><span>NC-17</span></label>
 						</div>
+					</fieldset>
+
+					<fieldset>
+						<legend><label for="ratingMinimum">Minimum score</label> <output id="ratingValue" for="ratingMinimum">Any</output></legend>
+						<input id="ratingMinimum" name="minRating" type="range" min="0" max="9" step="0.5" value="0">
+					</fieldset>
+
+					<fieldset>
+						<legend><label for="actorText">Actors</label> <span class="legend-hint">separate with commas</span></legend>
+						<input id="actorText" name="actors" type="text" placeholder="e.g. Tom Hanks, Meg Ryan" autocomplete="off">
+					</fieldset>
+
+					<div class="filter-actions">
+						<button class="btn btn-start" type="submit" id="applyBtn">Start with these filters</button>
+						<button class="btn btn-ghost" type="button" id="resetBtn">Reset</button>
 					</div>
-				</div>
-				<div class="row">
-					<div class="col-md-12 justify-content-md-center">
-						<p id="movieInfo"></p>
-					</div>
-				</div>
-				<div class="row justify-content-md-center">
-					<h4>Movie data from <a href="https://www.themoviedb.org/">The Movie DB</a></h4>
-				</div>
-				<div class="row justify-content-md-center">
-					<h5>Created by: <a href="https://www.joshwein.xyz">Josh Wein</a></h5>
-				</div>
-			</div>
-		</div>
-	</div>
-	<script src="/__/firebase/7.15.0/firebase-app.js">
-	</script> 
-	<script src="/__/firebase/7.15.0/firebase-remote-config.js">
-	</script> 
-	<script src="/__/firebase/init.js">
-	</script>
+				</form>
+			</details>
+		</aside>
+	</main>
+
+	<footer class="footer">
+		Movie data from <a href="https://www.themoviedb.org/">The Movie DB</a>. Made by <a href="https://www.joshwein.xyz">Josh Wein</a>.
+	</footer>
+
+	<script src="js/ytapi.js"></script>
+	<script src="js/scripts.js"></script>
+	<script src="https://apis.google.com/js/client.js"></script>
+	<script src="https://www.youtube.com/iframe_api"></script>
+	<script src="/__/firebase/7.15.0/firebase-app.js"></script>
+	<script src="/__/firebase/7.15.0/firebase-remote-config.js"></script>
+	<script src="/__/firebase/init.js"></script>
 </body>
 </html>

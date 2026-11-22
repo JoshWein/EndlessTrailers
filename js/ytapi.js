@@ -1,40 +1,91 @@
 /**
-* Youtube Data/Player API Code
-*/
-var g_youtube_api_created = false;
-function initYoutube() {
-    if (!g_youtube_api_created && remoteConfig.getString('yt_api_key') !== 'not_set') {
-        console.log("Creating youtube api client");
-        gapi.client.setApiKey(remoteConfig.getString('yt_api_key'));
-        gapi.client.load("youtube", "v3", function(){
-            //ready;
-            console.log("Client Ready");
-        });
-        g_youtube_api_created = true;
-    }
-}
+ * YouTube Data/Player API code.
+ * The Data API is only a fallback now: trailers come from TMDB's video list first.
+ */
+let g_youtubeSearchReady = false;
+let player = null;
+let g_playerReady = false;
+let g_pendingVideoId = null;
 
-var player;
-function onYouTubeIframeAPIReady() {
-    player = new YT.Player('player', {
-        controls: 2,
-        iv_load_policy: 3,
-        events: {
-            'onReady': onPlayerReady,
-            'onStateChange': onPlayerStateChange
-        }
+function initYoutube(apiKey) {
+    if (g_youtubeSearchReady || !apiKey || apiKey === "not_set" || !window.gapi) {
+        return;
+    }
+    gapi.load("client", () => {
+        gapi.client.setApiKey(apiKey);
+        gapi.client.load("youtube", "v3", () => {
+            g_youtubeSearchReady = true;
+        });
     });
 }
 
-function onPlayerReady(event) {
-    console.log("Video Player ready");
+// Resolves to the first video id YouTube finds for the query, or null.
+function youtubeSearch(q) {
+    if (!g_youtubeSearchReady) {
+        return Promise.resolve(null);
+    }
+    return new Promise((resolve) => {
+        gapi.client.youtube.search.list({
+            q,
+            part: "snippet",
+            type: "video",
+            videoEmbeddable: "true",
+            maxResults: 1,
+        }).execute((response) => {
+            const item = response && response.items && response.items[0];
+            resolve(item ? item.id.videoId : null);
+        });
+    });
 }
 
-// when video ends
-function onPlayerStateChange(event) {
-    if(event.data === 0) {
-        loadNextVideo();
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player("player", {
+        width: "100%",
+        height: "100%",
+        playerVars: {
+            playsinline: 1,
+            rel: 0,
+            iv_load_policy: 3,
+            modestbranding: 1,
+        },
+        events: {
+            onReady: onPlayerReady,
+            onStateChange: onPlayerStateChange,
+            onError: onPlayerError,
+        },
+    });
+}
+
+function onPlayerReady() {
+    g_playerReady = true;
+    if (g_pendingVideoId) {
+        player.loadVideoById(g_pendingVideoId);
+        g_pendingVideoId = null;
     }
-}/**
- * Created by Josh on 9/10/2016.
- */
+}
+
+function playVideoId(videoId) {
+    if (g_playerReady) {
+        player.loadVideoById(videoId);
+    } else {
+        g_pendingVideoId = videoId;
+    }
+}
+
+function stopPlayer() {
+    g_pendingVideoId = null;
+    if (g_playerReady) {
+        player.stopVideo();
+    }
+}
+
+function onPlayerStateChange(event) {
+    if (event.data === YT.PlayerState.ENDED) {
+        onTrailerEnded();
+    }
+}
+
+// 100/101/150: removed, private or not embeddable. Skip it instead of stalling.
+function onPlayerError() {
+    onTrailerFailed();
+}

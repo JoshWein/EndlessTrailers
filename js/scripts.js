@@ -4,17 +4,22 @@
  */
 const TMDB = "https://api.themoviedb.org/3";
 const FALLBACK_TMDB_KEY = "a5d4199b71fd3989796a8f11a0176c28";
-const DEFAULT_REGION = "us";
+const REGION = "US";
 const NUM_PAGES = 5;
+const STORAGE_KEY = "endlessTrailers.filters";
 
-let remoteConfig;
-let g_configuration;
-let g_currentMovieList = [];
-let g_currentMovieIndex = 0;
-// What the genre dropdown last picked: {type: "genre" | "list", id}
-let g_currentSelection = null;
+let remoteConfig = null;
+let g_configuration = null;
 
-const filters = { actor: false, minRating: false, mpaa: false };
+// Playback state. mode is "idle", "running" (the endless stream) or "single" (a title search).
+const state = {
+    mode: "idle",
+    queue: [],
+    index: 0,
+    run: 0, // bumps on every Start/Stop/search so stale async work can bail out
+    misses: 0, // trailers skipped in a row, so an empty stream stops instead of spinning
+    appliedKey: null, // the filters the current stream was started with
+};
 
 const $id = (id) => document.getElementById(id);
 
@@ -36,138 +41,199 @@ function setError(msg) {
     $id("err").textContent = msg;
 }
 
-function initialSetup() {
-    remoteConfig = firebase.remoteConfig();
-    remoteConfig.settings = { minimumFetchIntervalMillis: 3600000 };
-    remoteConfig.defaultConfig = { yt_api_key: "not_set" };
-
-    remoteConfig.fetchAndActivate()
-        .catch((err) => console.error(err))
-        .then(() => {
-            initYoutube();
-            return loadMovieDb();
-        })
-        .catch((err) => {
-            console.error(err);
-            setError("Couldn't reach The Movie DB. Try reloading.");
-        });
+function setStatus(msg) {
+    $id("status").textContent = msg;
 }
 
-async function loadMovieDb() {
-    g_configuration = await tmdb("/configuration");
-    const { genres } = await tmdb("/genre/movie/list");
-    insertGenres(genres);
-    initializeEventHandlers();
+/* ---------- Startup ---------- */
+
+async function initialSetup() {
+    if (window.firebase && firebase.remoteConfig) {
+        try {
+            remoteConfig = firebase.remoteConfig();
+            remoteConfig.settings = { minimumFetchIntervalMillis: 3600000 };
+            remoteConfig.defaultConfig = { yt_api_key: "not_set" };
+            await remoteConfig.fetchAndActivate();
+        } catch (err) {
+            console.error(err);
+        }
+    }
+    initYoutube(remoteConfig ? remoteConfig.getString("yt_api_key") : "");
+
+    try {
+        g_configuration = await tmdb("/configuration");
+        const { genres } = await tmdb("/genre/movie/list");
+        insertGenres(genres);
+    } catch (err) {
+        console.error(err);
+        $id("genreChips").innerHTML = '<span class="muted">Genres unavailable</span>';
+        setError("Couldn't reach The Movie DB. Try reloading.");
+    }
+    restoreFilters();
+    updateFilterSummary();
+    $id("startBtn").disabled = false;
+    setStatus("Ready. Press Start.");
 }
 
 function insertGenres(genres) {
-    const list = $id("genreList");
+    const box = $id("genreChips");
+    box.replaceChildren();
     genres.forEach((genre) => {
-        const option = document.createElement("option");
-        option.className = "genreChoice";
-        option.value = genre.id;
-        option.textContent = genre.name;
-        list.appendChild(option);
+        const label = document.createElement("label");
+        label.className = "chip";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.name = "genre";
+        input.value = genre.id;
+        input.dataset.name = genre.name;
+        const span = document.createElement("span");
+        span.textContent = genre.name;
+        label.append(input, span);
+        box.appendChild(label);
     });
 }
 
-function initializeEventHandlers() {
-    $id("genreList").addEventListener("change", function () {
-        const option = this.selectedOptions[0];
-        if (option.classList.contains("extraGenreChoice")) {
-            g_currentSelection = { type: "list", id: option.value };
-        } else if (option.classList.contains("genreChoice")) {
-            g_currentSelection = { type: "genre", id: option.value };
-        } else {
-            return; // "Choose Genre..." placeholder
-        }
-        refreshResults();
-    });
+/* ---------- Filters ---------- */
 
-    bindFilter("actor", "actorText", "actorFilterApply", "actorFilterClear");
-    bindFilter("minRating", "ratingMinimum", "ratingMinimumFilterApply", "ratingMinimumFilterClear");
-
-    $id("mpaaRatingFilterApply").addEventListener("click", () => {
-        filters.mpaa = selectedMpaaRating() !== null;
-        updateFilterVisuals();
-        refreshResults();
-    });
-    $id("mpaaRatingFilterClear").addEventListener("click", () => {
-        filters.mpaa = false;
-        document.querySelectorAll('input[name="mpaaRating"]').forEach((input) => {
-            input.checked = false;
-        });
-        updateFilterVisuals();
-        refreshResults();
-    });
+function readFilters() {
+    const form = $id("filterForm");
+    const checked = (name) => [...form.querySelectorAll(`input[name="${name}"]:checked`)];
+    return {
+        list: (checked("list")[0] || {}).value || "popular",
+        genres: checked("genre").map((i) => i.value),
+        genreNames: checked("genre").map((i) => i.dataset.name),
+        genreMode: (checked("genreMode")[0] || {}).value || "any",
+        mpaa: checked("mpaa").map((i) => i.value),
+        minRating: Number($id("ratingMinimum").value),
+        actors: $id("actorText").value.split(",").map((s) => s.trim()).filter(Boolean),
+    };
 }
 
-function bindFilter(name, inputId, applyId, clearId) {
-    const input = $id(inputId);
-    $id(applyId).addEventListener("click", () => {
-        filters[name] = input.value.length > 0;
-        updateFilterVisuals();
-        refreshResults();
-    });
-    input.addEventListener("keyup", (e) => {
-        if (e.key === "Enter") {
-            $id(applyId).click();
-        }
-    });
-    $id(clearId).addEventListener("click", () => {
-        input.value = "";
-        filters[name] = false;
-        updateFilterVisuals();
-        refreshResults();
-    });
+function filterKey(f) {
+    return JSON.stringify([f.list, f.genres, f.genreMode, f.mpaa, f.minRating, f.actors]);
 }
 
-function selectedMpaaRating() {
-    const checked = document.querySelector('input[name="mpaaRating"]:checked');
-    return checked ? checked.value : null;
+const LIST_NAMES = {
+    popular: "Popular",
+    top_rated: "Top rated",
+    now_playing: "In theaters",
+    upcoming: "Coming soon",
+};
+
+function describeFilters(f) {
+    const parts = [LIST_NAMES[f.list]];
+    if (f.genreNames.length === 0) {
+        parts.push("any genre");
+    } else if (f.genreNames.length <= 3) {
+        parts.push(f.genreNames.join(f.genreMode === "all" ? " + " : " / "));
+    } else {
+        parts.push(`${f.genreNames.length} genres`);
+    }
+    if (f.mpaa.length) parts.push(f.mpaa.join("/"));
+    if (f.minRating > 0) parts.push(`${f.minRating}+`);
+    if (f.actors.length) parts.push(f.actors.join(", "));
+    return parts.join(", ");
 }
 
-function refreshResults() {
-    if (!g_currentSelection) {
+function updateFilterSummary() {
+    const f = readFilters();
+    $id("filterSummary").textContent = describeFilters(f);
+    $id("ratingValue").textContent = f.minRating > 0 ? `${f.minRating}+` : "Any";
+    updateButtons();
+}
+
+function saveFilters() {
+    const f = readFilters();
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(f));
+    } catch (err) {
+        // storage can be unavailable (private mode); filters just won't persist
+    }
+}
+
+function restoreFilters() {
+    let saved = null;
+    try {
+        saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    } catch (err) {
         return;
     }
-    const load = g_currentSelection.type === "list"
-        ? getMoviesSpecialList(g_currentSelection.id)
-        : getMovies(g_currentSelection.id);
-    load.catch((err) => {
-        console.error(err);
-        setError("Couldn't load movies. Try again.");
-    });
-}
-
-// Now Playing / Upcoming / Top Rated / Popular
-async function getMoviesSpecialList(list) {
-    const response = await tmdb(`/movie/${list}`, { region: DEFAULT_REGION });
-    showMovieList(response.results);
-}
-
-// Build the discover request from the genre and the advanced filters
-async function getMovies(genre) {
-    const params = {
-        with_genres: genre,
-        language: "en",
-        "vote_average.gte": filters.minRating ? $id("ratingMinimum").value : 4,
+    if (!saved) return;
+    const form = $id("filterForm");
+    const setChecked = (name, values) => {
+        form.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
+            input.checked = values.includes(input.value);
+        });
     };
-    const rating = selectedMpaaRating();
-    if (filters.mpaa && rating) {
-        params.certification_country = "US";
-        params.certification = rating;
-    }
-    if (filters.actor) {
-        const result = await tmdb("/search/person", { query: $id("actorText").value });
-        if (result.results.length === 0) {
-            setError("No results for that actor");
-            return;
-        }
-        $id("actorText").value = result.results[0].name;
-        params.with_cast = result.results[0].id;
-    }
+    if (saved.list) setChecked("list", [saved.list]);
+    if (saved.genreMode) setChecked("genreMode", [saved.genreMode]);
+    setChecked("genre", saved.genres || []);
+    setChecked("mpaa", saved.mpaa || []);
+    $id("ratingMinimum").value = saved.minRating || 0;
+    $id("actorText").value = (saved.actors || []).join(", ");
+}
 
+function resetFilters() {
+    const form = $id("filterForm");
+    form.reset();
+    // form.reset() restores the HTML defaults, which is what we want
+    updateFilterSummary();
+    saveFilters();
+}
+
+function isoDate(offsetDays) {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    return d.toISOString().slice(0, 10);
+}
+
+// Everything goes through /discover so the lists, genres and other filters combine.
+async function buildDiscoverParams(f) {
+    const params = {
+        language: "en-US",
+        include_adult: "false",
+        sort_by: "popularity.desc",
+    };
+    if (f.list === "top_rated") {
+        params.sort_by = "vote_average.desc";
+        params["vote_count.gte"] = 300;
+    } else if (f.list === "now_playing") {
+        params.region = REGION;
+        params.with_release_type = "2|3";
+        params["primary_release_date.gte"] = isoDate(-45);
+        params["primary_release_date.lte"] = isoDate(0);
+    } else if (f.list === "upcoming") {
+        params.region = REGION;
+        params.with_release_type = "2|3";
+        params["primary_release_date.gte"] = isoDate(1);
+        params["primary_release_date.lte"] = isoDate(180);
+    }
+    if (f.genres.length) {
+        params.with_genres = f.genres.join(f.genreMode === "all" ? "," : "|");
+    }
+    if (f.mpaa.length) {
+        params.certification_country = REGION;
+        params.certification = f.mpaa.join("|");
+    }
+    if (f.minRating > 0) {
+        params["vote_average.gte"] = f.minRating;
+        params["vote_count.gte"] = Math.max(params["vote_count.gte"] || 0, 50);
+    }
+    if (f.actors.length) {
+        const people = await Promise.all(f.actors.map((name) => tmdb("/search/person", { query: name })));
+        const missing = f.actors.filter((name, i) => people[i].results.length === 0);
+        if (missing.length) {
+            throw new UserError(`No actor found for "${missing.join('", "')}".`);
+        }
+        params.with_cast = people.map((p) => p.results[0].id).join(",");
+    }
+    return params;
+}
+
+class UserError extends Error {}
+
+async function discoverMovies(f) {
+    const params = await buildDiscoverParams(f);
     const first = await tmdb("/discover/movie", params);
     const pages = Math.min(first.total_pages, NUM_PAGES);
     const rest = [];
@@ -175,58 +241,171 @@ async function getMovies(genre) {
         rest.push(tmdb("/discover/movie", { ...params, page }));
     }
     const more = await Promise.all(rest);
-    showMovieList(first.results.concat(...more.map((r) => r.results)));
+    return first.results.concat(...more.map((r) => r.results));
 }
 
-function showMovieList(movies) {
-    if (movies.length === 0) {
-        setError("No movies found");
+/* ---------- Start / Stop ---------- */
+
+async function start() {
+    const f = readFilters();
+    saveFilters();
+    const run = ++state.run;
+    state.mode = "running";
+    state.appliedKey = filterKey(f);
+    state.queue = [];
+    setError("");
+    setStatus(`Finding trailers: ${describeFilters(f)}…`);
+    updateButtons();
+    collapseFiltersOnPhone();
+
+    try {
+        const movies = await discoverMovies(f);
+        if (run !== state.run) return;
+        if (movies.length === 0) {
+            stop("No movies match those filters. Try loosening them.");
+            return;
+        }
+        state.queue = shuffle(movies);
+        state.index = 0;
+        state.misses = 0;
+        updateButtons();
+        playCurrent();
+    } catch (err) {
+        if (run !== state.run) return;
+        console.error(err);
+        stop(err instanceof UserError ? err.message : "Couldn't load movies. Try again.");
+    }
+}
+
+function stop(message) {
+    state.run++;
+    state.mode = "idle";
+    state.appliedKey = null;
+    stopPlayer();
+    $id("screenIdle").hidden = false;
+    setError(typeof message === "string" ? message : "");
+    setStatus("Stopped. Press Start to keep watching.");
+    updateButtons();
+}
+
+function updateButtons() {
+    const running = state.mode !== "idle";
+    const changed = state.mode === "running" && state.appliedKey !== filterKey(readFilters());
+    $id("startLabel").textContent = state.mode === "running" ? "Restart" : "Start";
+    $id("startBtn").classList.toggle("is-attention", changed);
+    $id("startBtn").title = changed ? "Your filters changed. Restart to use them." : "";
+    $id("applyBtn").textContent = state.mode === "running"
+        ? (changed ? "Restart with these filters" : "Playing these filters")
+        : "Start with these filters";
+    $id("applyBtn").disabled = $id("startBtn").disabled || (state.mode === "running" && !changed);
+    $id("stopBtn").disabled = !running;
+    const canSkip = state.mode === "running" && state.queue.length > 1;
+    $id("prevBtn").disabled = !canSkip;
+    $id("nextBtn").disabled = !canSkip;
+    document.body.dataset.mode = state.mode;
+    document.body.classList.toggle("filters-changed", changed);
+}
+
+function collapseFiltersOnPhone() {
+    if (window.matchMedia("(max-width: 899px)").matches) {
+        $id("filterPanel").open = false;
+    }
+}
+
+/* ---------- Queue ---------- */
+
+function step(delta) {
+    if (state.queue.length === 0) return;
+    const n = state.queue.length;
+    state.index = (state.index + delta + n) % n;
+    if (state.index === 0 && delta > 0) {
+        shuffle(state.queue); // went all the way round: new order for the next lap
+    }
+    playCurrent();
+}
+
+async function playCurrent() {
+    const run = state.run;
+    const movie = state.queue[state.index];
+    showMovieInfo(movie);
+    setStatus(state.mode === "running"
+        ? `Trailer ${state.index + 1} of ${state.queue.length}`
+        : "Search result");
+    const videoId = await findTrailer(movie);
+    if (run !== state.run) return;
+    if (!videoId) {
+        onTrailerFailed();
         return;
     }
-    setError("");
-    g_currentMovieList = shuffle(movies.slice()); // Unique for everyone!
-    g_currentMovieIndex = 0;
-    loadVideo(g_currentMovieList[0]);
+    $id("screenIdle").hidden = true;
+    playVideoId(videoId);
 }
 
-function loadNextVideo() {
-    if (g_currentMovieList.length === 0) return;
-    g_currentMovieIndex = (g_currentMovieIndex + 1) % g_currentMovieList.length;
-    loadVideo(g_currentMovieList[g_currentMovieIndex]);
+// Called by the player when a trailer finishes.
+function onTrailerEnded() {
+    state.misses = 0;
+    if (state.mode === "running") {
+        step(1);
+    } else if (state.mode === "single") {
+        state.mode = "idle";
+        setStatus("Done. Press Start for more.");
+        updateButtons();
+    }
 }
 
-function loadPreviousVideo() {
-    if (g_currentMovieList.length === 0) return;
-    g_currentMovieIndex = (g_currentMovieIndex - 1 + g_currentMovieList.length) % g_currentMovieList.length;
-    loadVideo(g_currentMovieList[g_currentMovieIndex]);
+// No trailer, or YouTube wouldn't play it: move on unless everything is failing.
+function onTrailerFailed() {
+    state.misses++;
+    if (state.mode === "running" && state.misses < Math.min(state.queue.length, 15)) {
+        step(1);
+    } else {
+        stop(state.mode === "single"
+            ? "Couldn't find a playable trailer for that movie."
+            : "Couldn't find playable trailers for these movies.");
+    }
 }
 
-function loadVideo(movie) {
-    search(movie.title);
-    $id("movieTitle").textContent = movie.title;
-    showMovieInfo(movie);
+// TMDB lists each movie's YouTube videos, so most trailers need no YouTube search at all.
+async function findTrailer(movie) {
+    try {
+        if (movie.id) {
+            const { results } = await tmdb(`/movie/${movie.id}/videos`, { language: "en-US" });
+            const youtube = results.filter((v) => v.site === "YouTube");
+            const rank = (v) => (v.type === "Trailer" ? 0 : v.type === "Teaser" ? 2 : 4) + (v.official ? 0 : 1);
+            youtube.sort((a, b) => rank(a) - rank(b));
+            if (youtube.length && rank(youtube[0]) < 4) {
+                return youtube[0].key;
+            }
+        }
+    } catch (err) {
+        console.error(err);
+    }
+    const year = (movie.release_date || "").slice(0, 4);
+    return youtubeSearch(`${movie.title} ${year} trailer`);
 }
+
+/* ---------- Movie info ---------- */
 
 const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
 
 function showMovieInfo(movie) {
+    $id("movie").hidden = false;
+    $id("movieTitle").textContent = movie.title;
     loadPoster(movie);
     $id("movieInfo").textContent = movie.overview || "";
 
     const [year, month, day] = (movie.release_date || "").split("-").map(Number);
-    $id("releaseDate").textContent = year
-        ? `Release Date: ${monthNames[month - 1]} ${day}, ${year}`
-        : "";
-    $id("rating").textContent = typeof movie.vote_average === "number"
-        ? `Rating: ${movie.vote_average.toFixed(2)}/10`
+    $id("releaseDate").textContent = year ? `${monthNames[month - 1]} ${day}, ${year}` : "";
+    $id("rating").textContent = movie.vote_count > 0 && typeof movie.vote_average === "number"
+        ? `★ ${movie.vote_average.toFixed(1)}/10`
         : "";
 
     const link = document.createElement("a");
     link.target = "_blank";
     link.rel = "noopener";
     link.href = "https://www.justwatch.com/us/search?q=" + encodeURIComponent(movie.title);
-    link.textContent = "Can I Stream It?";
+    link.textContent = "Where to stream it";
     $id("canistreamlink").replaceChildren(link);
 }
 
@@ -236,73 +415,44 @@ function loadPoster(movie) {
         poster.replaceChildren();
         return;
     }
+    const sizes = g_configuration.images.poster_sizes;
     const img = document.createElement("img");
-    img.src = g_configuration.images.secure_base_url + g_configuration.images.poster_sizes[0] + movie.poster_path;
+    img.src = g_configuration.images.secure_base_url + (sizes.includes("w185") ? "w185" : sizes[0]) + movie.poster_path;
     img.alt = `${movie.title} poster`;
     poster.replaceChildren(img);
 }
 
-function searchSubmit() {
-    const query = $id("searchText").value;
-    if (!query) return false;
-    search(query);
-    getMovieInfo(query).catch((err) => console.error(err));
-    return false;
-}
+/* ---------- Title search ---------- */
 
-// Search YouTube for the trailer and play the first hit
-function search(q) {
-    let queryAddon = " trailer";
-    if (filters.actor) {
-        queryAddon += " " + $id("actorText").value;
-    }
-    if (!window.gapi || !gapi.client || !gapi.client.youtube) {
-        setError("YouTube search isn't ready yet. Try again in a moment.");
-        return;
-    }
-    gapi.client.youtube.search.list({
-        q: q + queryAddon,
-        part: "snippet",
-        type: "video",
-        maxResults: 1,
-    }).execute((response) => {
-        if (response && response.items && response.items.length > 0 && player) {
-            player.loadVideoById(response.items[0].id.videoId, 1, "default");
+async function searchSubmit() {
+    const query = $id("searchText").value.trim();
+    if (!query) return;
+    const run = ++state.run;
+    setError("");
+    try {
+        const response = await tmdb("/search/movie", { query });
+        if (run !== state.run) return;
+        if (response.results.length === 0) {
+            setError(`No movie found for "${query}".`);
+            return;
         }
-    });
-}
-
-// Request movie data for a free-text search
-async function getMovieInfo(query) {
-    const response = await tmdb("/search/movie", { query });
-    if (response.results.length > 0) {
-        $id("movieTitle").textContent = response.results[0].original_title;
-        showMovieInfo(response.results[0]);
-    } else {
-        $id("movieTitle").textContent = query;
-        clearMovieInfo();
-        $id("releaseDate").textContent = "No info found";
+        state.mode = "single";
+        state.appliedKey = null;
+        state.queue = [response.results[0]];
+        state.index = 0;
+        state.misses = 0;
+        updateButtons();
+        playCurrent();
+        $id("searchText").blur();
+    } catch (err) {
+        console.error(err);
+        setError("Search failed. Try again.");
     }
 }
 
-function clearMovieInfo() {
-    ["releaseDate", "movieInfo", "rating", "canistreamlink", "poster", "err"].forEach((id) => {
-        $id(id).replaceChildren();
-    });
-}
+/* ---------- Helpers ---------- */
 
-function setActive(button, active) {
-    button.classList.toggle("btn-success", active);
-    button.classList.toggle("btn-outline-primary", !active);
-}
-
-function updateFilterVisuals() {
-    setActive($id("actorFilterApply"), filters.actor);
-    setActive($id("ratingMinimumFilterApply"), filters.minRating);
-    setActive($id("mpaaRatingFilterApply"), filters.mpaa);
-}
-
-// Fisher-Yates shuffle
+// Fisher-Yates shuffle, in place. Unique for everyone!
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -316,5 +466,25 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         searchSubmit();
     });
+    $id("filterForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        start();
+    });
+    $id("filterForm").addEventListener("input", updateFilterSummary);
+    $id("filterForm").addEventListener("change", () => {
+        updateFilterSummary();
+        saveFilters();
+    });
+    $id("startBtn").addEventListener("click", start);
+    $id("stopBtn").addEventListener("click", () => stop());
+    $id("prevBtn").addEventListener("click", () => {
+        state.misses = 0;
+        step(-1);
+    });
+    $id("nextBtn").addEventListener("click", () => {
+        state.misses = 0;
+        step(1);
+    });
+    $id("resetBtn").addEventListener("click", resetFilters);
     initialSetup();
 });
