@@ -18,6 +18,8 @@ const state = {
     index: 0,
     run: 0, // bumps on every Start/Stop/search so stale async work can bail out
     misses: 0, // trailers skipped in a row, so an empty stream stops instead of spinning
+    play: 0, // bumps on every trailer change so a slow lookup can't start the wrong video
+    playing: false, // true once YouTube reports the current trailer is actually playing
     appliedKey: null, // the filters the current stream was started with
 };
 
@@ -200,24 +202,35 @@ async function buildDiscoverParams(f) {
     } else if (f.list === "now_playing") {
         params.region = REGION;
         params.with_release_type = "2|3";
-        params["primary_release_date.gte"] = isoDate(-45);
-        params["primary_release_date.lte"] = isoDate(0);
+        params["release_date.gte"] = isoDate(-45);
+        params["release_date.lte"] = isoDate(0);
     } else if (f.list === "upcoming") {
         params.region = REGION;
         params.with_release_type = "2|3";
-        params["primary_release_date.gte"] = isoDate(1);
-        params["primary_release_date.lte"] = isoDate(180);
+        params["release_date.gte"] = isoDate(1);
+        params["release_date.lte"] = isoDate(180);
     }
     if (f.genres.length) {
         params.with_genres = f.genres.join(f.genreMode === "all" ? "," : "|");
     }
     if (f.mpaa.length) {
         params.certification_country = REGION;
-        params.certification = f.mpaa.join("|");
+        const picked = MPAA_ORDER.map((r, i) => (f.mpaa.includes(r) ? i : -1)).filter((i) => i >= 0);
+        const contiguous = picked[picked.length - 1] - picked[0] === picked.length - 1;
+        if (contiguous) {
+            // A documented range, e.g. PG through PG-13
+            params["certification.gte"] = MPAA_ORDER[picked[0]];
+            params["certification.lte"] = MPAA_ORDER[picked[picked.length - 1]];
+        } else {
+            params.certification = f.mpaa.join("|");
+        }
     }
     if (f.minRating > 0) {
         params["vote_average.gte"] = f.minRating;
-        params["vote_count.gte"] = Math.max(params["vote_count.gte"] || 0, 50);
+        // Unreleased films have almost no votes, so only ask for a vote floor on released ones
+        if (f.list !== "upcoming") {
+            params["vote_count.gte"] = Math.max(params["vote_count.gte"] || 0, f.list === "now_playing" ? 10 : 50);
+        }
     }
     if (f.actors.length) {
         const people = await Promise.all(f.actors.map((name) => tmdb("/search/person", { query: name })));
@@ -231,6 +244,8 @@ async function buildDiscoverParams(f) {
 }
 
 class UserError extends Error {}
+
+const MPAA_ORDER = ["G", "PG", "PG-13", "R", "NC-17"];
 
 async function discoverMovies(f) {
     const params = await buildDiscoverParams(f);
@@ -326,19 +341,32 @@ function step(delta) {
 
 async function playCurrent() {
     const run = state.run;
+    const play = ++state.play;
+    state.playing = false;
     const movie = state.queue[state.index];
     showMovieInfo(movie);
     setStatus(state.mode === "running"
         ? `Trailer ${state.index + 1} of ${state.queue.length}`
         : "Search result");
     const videoId = await findTrailer(movie);
-    if (run !== state.run) return;
+    if (run !== state.run || play !== state.play) return;
     if (!videoId) {
         onTrailerFailed();
         return;
     }
     $id("screenIdle").hidden = true;
     playVideoId(videoId);
+    // Phones can block autoplay; if nothing starts, say how to get it going
+    setTimeout(() => {
+        if (play === state.play && !state.playing && state.mode !== "idle") {
+            setStatus(`${$id("status").textContent}. Tap the video if it doesn't start.`);
+        }
+    }, 4000);
+}
+
+// Called by the player once a trailer is really playing.
+function onTrailerPlaying() {
+    state.playing = true;
 }
 
 // Called by the player when a trailer finishes.
@@ -348,6 +376,7 @@ function onTrailerEnded() {
         step(1);
     } else if (state.mode === "single") {
         state.mode = "idle";
+        state.queue = [];
         setStatus("Done. Press Start for more.");
         updateButtons();
     }
@@ -355,6 +384,9 @@ function onTrailerEnded() {
 
 // No trailer, or YouTube wouldn't play it: move on unless everything is failing.
 function onTrailerFailed() {
+    if (state.mode === "idle" || state.queue.length === 0) {
+        return; // a late player error after Stop, or during a Restart that's still loading
+    }
     state.misses++;
     if (state.mode === "running" && state.misses < Math.min(state.queue.length, 15)) {
         step(1);
@@ -427,15 +459,16 @@ function loadPoster(movie) {
 async function searchSubmit() {
     const query = $id("searchText").value.trim();
     if (!query) return;
-    const run = ++state.run;
+    const run = state.run;
     setError("");
     try {
         const response = await tmdb("/search/movie", { query });
-        if (run !== state.run) return;
+        if (run !== state.run) return; // Start or Stop was pressed meanwhile
         if (response.results.length === 0) {
             setError(`No movie found for "${query}".`);
             return;
         }
+        state.run++;
         state.mode = "single";
         state.appliedKey = null;
         state.queue = [response.results[0]];

@@ -82,6 +82,8 @@ function stopPlayer() {
 function onPlayerStateChange(event) {
     if (event.data === YT.PlayerState.ENDED) {
         onTrailerEnded();
+    } else if (event.data === YT.PlayerState.PLAYING) {
+        onTrailerPlaying();
     }
 }
 

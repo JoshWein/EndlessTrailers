@@ -139,7 +139,7 @@ input::placeholder { color: var(--muted); }
         align-items: start;
         padding-top: 24px;
     }
-    .filters { position: sticky; top: 88px; }
+    .filters { position: sticky; top: 88px; max-height: calc(100vh - 104px); overflow-y: auto; border-radius: var(--radius); }
 }
 
 /* ---------- Player ---------- */
@@ -215,7 +215,8 @@ input::placeholder { color: var(--muted); }
 }
 .movie-poster img { width: 100%; height: auto; border-radius: 8px; display: block; }
 .movie-poster:empty { display: none; }
-.movie:has(.movie-poster:empty) { grid-template-columns: 1fr; }
+.movie:has(.movie-poster:empty) { grid-template-columns: 1fr; grid-template-rows: none; }
+.movie:has(.movie-poster:empty) > .movie-body > * { grid-column: 1; }
 .movie-title { margin: 0 0 4px; font-size: clamp(1.2rem, 3vw, 1.6rem); line-height: 1.2; }
 .movie-meta { margin: 0 0 10px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .movie-meta span:empty { display: none; }
