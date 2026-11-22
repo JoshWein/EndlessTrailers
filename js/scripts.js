@@ -483,18 +483,19 @@ function showMovieDetails(details) {
         label.textContent = "Starring ";
         box.append(label);
         cast.forEach((name, i) => {
-            const el = document.createElement(wanted.includes(name.toLowerCase()) ? "strong" : "span");
+            const lower = name.toLowerCase();
+            const el = document.createElement(wanted.some((w) => lower.includes(w)) ? "strong" : "span");
             el.textContent = name;
             box.append(el, i < cast.length - 1 ? ", " : "");
         });
     }
 }
 
-// US theatrical rating (G, PG, PG-13, R, NC-17) if TMDB has one.
+// US MPAA rating (G, PG, PG-13, R, NC-17) if TMDB has one, theatrical release first.
 function usCertification(details) {
     const us = ((details.release_dates && details.release_dates.results) || []).find((r) => r.iso_3166_1 === "US");
     if (!us) return "";
-    const dates = us.release_dates.filter((d) => d.certification);
+    const dates = us.release_dates.filter((d) => MPAA_ORDER.includes(d.certification));
     dates.sort((a, b) => (a.type === 3 ? -1 : 0) - (b.type === 3 ? -1 : 0));
     return dates.length ? dates[0].certification : "";
 }
