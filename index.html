@@ -3,14 +3,15 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-	<meta name="theme-color" content="#0e0f13">
+	<meta name="theme-color" content="#16120f">
 	<meta name="description" content="Pick genres, ratings and actors, press Start, and watch movie trailers back to back.">
 	<title>Endless Trailers</title>
+	<link rel="preload" href="fonts/anton-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 	<link href="css/style.css" rel="stylesheet">
 </head>
 <body>
 	<header class="topbar">
-		<a class="brand" href="./">Endless<span>Trailers</span></a>
+		<a class="brand" href="./">Endless <span>Trailers</span></a>
 		<form class="title-search" id="trailerSearch" role="search">
 			<label class="visually-hidden" for="searchText">Find one movie's trailer</label>
 			<input id="searchText" type="search" placeholder="Find a movie by title" autocomplete="off" enterkeyhint="search">
@@ -23,7 +24,8 @@
 			<div class="screen">
 				<div id="player"></div>
 				<div class="screen-idle" id="screenIdle">
-					<p class="idle-title">Endless trailers, your way.</p>
+					<p class="idle-kicker">Now showing</p>
+					<p class="idle-title">Trailers, back to back</p>
 					<p class="idle-text">Pick any filters, then press <strong>Start</strong>. Trailers keep playing until you press <strong>Stop</strong>.</p>
 				</div>
 			</div>
