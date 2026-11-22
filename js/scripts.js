@@ -483,6 +483,30 @@ async function searchSubmit() {
     }
 }
 
+/* ---------- Theater mode ---------- */
+
+const THEATER_KEY = "endlessTrailers.theater";
+
+function setTheater(on) {
+    document.documentElement.classList.toggle("theater", on);
+    $id("theaterBtn").setAttribute("aria-pressed", String(on));
+    try {
+        localStorage.setItem(THEATER_KEY, on ? "1" : "0");
+    } catch (err) {
+        // not remembered, that's fine
+    }
+}
+
+function isTheater() {
+    return document.documentElement.classList.contains("theater");
+}
+
+// Only text boxes swallow the shortcut; chips, radios and the slider don't
+function isTyping(target) {
+    return Boolean(target && target.closest &&
+        target.closest('input[type="text"], input[type="search"], textarea, select, [contenteditable="true"]'));
+}
+
 /* ---------- Helpers ---------- */
 
 // Fisher-Yates shuffle, in place. Unique for everyone!
@@ -519,5 +543,18 @@ document.addEventListener("DOMContentLoaded", () => {
         step(1);
     });
     $id("resetBtn").addEventListener("click", resetFilters);
+    $id("theaterBtn").addEventListener("click", () => setTheater(!isTheater()));
+    // T toggles theater mode, Esc leaves it. (Keys pressed while the video itself
+    // has focus go to YouTube, so the button stays visible as the way out.)
+    document.addEventListener("keydown", (e) => {
+        if (e.repeat || e.isComposing || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key === "Escape" && isTheater()) {
+            setTheater(false);
+        } else if ((e.key === "t" || e.key === "T") && !isTyping(e.target)) {
+            setTheater(!isTheater());
+        }
+    });
+    // The class itself was set by the inline script in <head>, before first paint
+    $id("theaterBtn").setAttribute("aria-pressed", String(isTheater()));
     initialSetup();
 });
