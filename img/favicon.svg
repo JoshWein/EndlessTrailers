@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- film frame: ink with paper sprocket holes, red play button -->
+  <rect width="64" height="64" fill="#16120f"/>
+  <g fill="#f1e9d8">
+    <rect x="4" y="5" width="6" height="7"/><rect x="4" y="21" width="6" height="7"/><rect x="4" y="37" width="6" height="7"/><rect x="4" y="53" width="6" height="7"/>
+    <rect x="54" y="5" width="6" height="7"/><rect x="54" y="21" width="6" height="7"/><rect x="54" y="37" width="6" height="7"/><rect x="54" y="53" width="6" height="7"/>
+  </g>
+  <path d="M23 17v30l24-15z" fill="#c8231c"/>
+</svg>
