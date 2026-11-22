@@ -518,6 +518,7 @@ async function playCurrent() {
         return;
     }
     $id("screenIdle").hidden = true;
+    state.videoId = videoId;
     playVideoId(videoId);
     // Phones can block autoplay; if nothing starts, say how to get it going
     setTimeout(() => {
@@ -529,6 +530,11 @@ async function playCurrent() {
 
 // Called by the player once a trailer is really playing.
 function onTrailerPlaying() {
+    // Ignore a late PLAYING event from the previous trailer while the next one loads
+    const data = player && player.getVideoData ? player.getVideoData() : null;
+    if (data && data.video_id && data.video_id !== state.videoId) {
+        return;
+    }
     if (!state.playing) {
         markSeen(state.queue[state.index]);
     }
@@ -760,7 +766,15 @@ document.addEventListener("DOMContentLoaded", () => {
         start();
     });
     $id("filterForm").addEventListener("input", updateFilterSummary);
-    $id("filterForm").addEventListener("change", () => {
+    $id("filterForm").addEventListener("change", (e) => {
+        // A genre can't be both wanted and hidden: checking one side clears the other
+        const t = e.target;
+        if (t && t.checked && (t.name === "genre" || t.name === "genreOut")) {
+            const other = t.name === "genre" ? "genreOut" : "genre";
+            document.querySelectorAll(`input[name="${other}"][value="${t.value}"]`).forEach((i) => {
+                i.checked = false;
+            });
+        }
         updateFilterSummary();
         saveFilters();
     });
